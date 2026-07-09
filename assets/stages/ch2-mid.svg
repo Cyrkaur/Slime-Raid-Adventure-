@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="160" viewBox="0 0 720 160" preserveAspectRatio="none">
+  <defs>
+    <linearGradient id="snow" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#eceff1" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#90a4ae" stop-opacity="0.95"/>
+    </linearGradient>
+    <linearGradient id="rock" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#78909c"/>
+      <stop offset="100%" stop-color="#455a64"/>
+    </linearGradient>
+  </defs>
+  <path d="M0 100 L80 40 L140 90 L220 20 L300 85 L380 35 L460 95 L540 25 L620 88 L720 45 L720 160 L0 160 Z" fill="url(#rock)" opacity="0.92"/>
+  <path d="M80 40 L100 55 L90 48 Z" fill="#eceff1" opacity="0.85"/>
+  <path d="M220 20 L245 42 L230 32 Z" fill="#fafafa" opacity="0.9"/>
+  <path d="M380 35 L405 55 L392 45 Z" fill="#eceff1" opacity="0.85"/>
+  <path d="M540 25 L568 48 L552 38 Z" fill="#fafafa" opacity="0.88"/>
+  <path d="M720 45 L700 58 L720 55 Z" fill="#eceff1" opacity="0.7"/>
+  <!-- pines -->
+  <g fill="#1b4d3e">
+    <polygon points="120,130 135,70 150,130"/>
+    <polygon points="125,110 135,78 145,110"/>
+    <rect x="132" y="128" width="6" height="14" fill="#3e2723"/>
+  </g>
+  <g fill="#245a48">
+    <polygon points="340,128 358,62 376,128"/>
+    <rect x="354" y="126" width="7" height="16" fill="#3e2723"/>
+  </g>
+  <g fill="#1b4d3e">
+    <polygon points="500,132 512,78 524,132"/>
+    <rect x="509" y="130" width="5" height="12" fill="#4e342e"/>
+  </g>
+  <g fill="#245a48">
+    <polygon points="640,130 656,68 672,130"/>
+    <rect x="653" y="128" width="6" height="14" fill="#3e2723"/>
+  </g>
+  <!-- snow ground wash -->
+  <ellipse cx="200" cy="140" rx="60" ry="14" fill="url(#snow)" opacity="0.55"/>
+  <ellipse cx="480" cy="142" rx="70" ry="12" fill="url(#snow)" opacity="0.5"/>
+</svg>

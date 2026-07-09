@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="160" viewBox="0 0 720 160" preserveAspectRatio="none">
+  <defs>
+    <linearGradient id="ash" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#bf360c" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#1a0c08" stop-opacity="0.95"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="30%" r="50%">
+      <stop offset="0%" stop-color="#ff6d00" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#bf360c" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <path d="M0 115 L90 70 L160 110 L250 55 L340 108 L430 60 L520 112 L610 50 L720 100 L720 160 L0 160 Z" fill="#4e342e" opacity="0.9"/>
+  <path d="M0 130 C100 118 200 135 360 122 C500 110 600 130 720 120 L720 160 L0 160 Z" fill="url(#ash)"/>
+  <!-- volcano cones -->
+  <polygon points="120,140 170,55 220,140" fill="#5d4037"/>
+  <ellipse cx="170" cy="55" rx="14" ry="6" fill="url(#glow)"/>
+  <polygon points="400,142 455,48 510,142" fill="#3e2723"/>
+  <ellipse cx="455" cy="50" rx="16" ry="7" fill="url(#glow)"/>
+  <polygon points="620,140 660,70 700,140" fill="#4e342e"/>
+  <ellipse cx="660" cy="72" rx="12" ry="5" fill="url(#glow)"/>
+  <!-- embers -->
+  <circle cx="175" cy="40" r="2.5" fill="#ffab40" opacity="0.9"/>
+  <circle cx="190" cy="28" r="1.8" fill="#ff6d00" opacity="0.7"/>
+  <circle cx="450" cy="32" r="2.2" fill="#ffab40" opacity="0.85"/>
+  <circle cx="470" cy="22" r="1.5" fill="#ffcc80" opacity="0.7"/>
+  <circle cx="665" cy="55" r="2" fill="#ffab40" opacity="0.8"/>
+  <!-- cracked ground lines -->
+  <path d="M50 145 Q90 140 130 148" stroke="#ff6d00" stroke-width="1" opacity="0.35" fill="none"/>
+  <path d="M300 148 Q360 142 420 150" stroke="#e65100" stroke-width="1" opacity="0.3" fill="none"/>
+  <path d="M540 146 Q600 140 680 148" stroke="#ff6d00" stroke-width="1" opacity="0.3" fill="none"/>
+</svg>

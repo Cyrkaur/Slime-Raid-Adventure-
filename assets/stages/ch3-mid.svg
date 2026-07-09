@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="160" viewBox="0 0 720 160" preserveAspectRatio="none">
+  <defs>
+    <linearGradient id="mire" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#4a3a68" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#1a1428" stop-opacity="0.95"/>
+    </linearGradient>
+    <linearGradient id="stone" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#8d6e63"/>
+      <stop offset="100%" stop-color="#3e2723"/>
+    </linearGradient>
+  </defs>
+  <path d="M0 120 C80 100 140 115 200 105 C280 90 340 120 420 108 C500 95 560 118 640 110 C680 106 710 112 720 110 L720 160 L0 160 Z" fill="url(#mire)"/>
+  <!-- ruins -->
+  <g opacity="0.9">
+    <rect x="70" y="70" width="22" height="55" fill="url(#stone)"/>
+    <rect x="95" y="88" width="16" height="37" fill="#5d4037"/>
+    <rect x="55" y="95" width="12" height="30" fill="#6d4c41" opacity="0.85"/>
+    <path d="M70 70 L81 55 L92 70" fill="#a1887f" opacity="0.6"/>
+  </g>
+  <g opacity="0.88">
+    <rect x="280" y="78" width="18" height="48" fill="url(#stone)"/>
+    <rect x="302" y="95" width="28" height="31" fill="#4e342e"/>
+    <rect x="335" y="85" width="14" height="41" fill="#6d4c41"/>
+  </g>
+  <g opacity="0.9">
+    <rect x="480" y="65" width="26" height="60" fill="url(#stone)"/>
+    <rect x="510" y="90" width="20" height="35" fill="#5d4037"/>
+    <path d="M480 65 L493 48 L506 65" fill="#bcaaa4" opacity="0.45"/>
+  </g>
+  <g opacity="0.85">
+    <rect x="620" y="80" width="15" height="46" fill="#5d4037"/>
+    <rect x="640" y="95" width="22" height="31" fill="#3e2723"/>
+  </g>
+  <!-- reeds -->
+  <g stroke="#689f38" stroke-width="2" opacity="0.7" fill="none">
+    <path d="M160 145 Q162 120 158 100"/>
+    <path d="M168 145 Q172 118 170 98"/>
+    <path d="M400 148 Q398 122 402 105"/>
+    <path d="M410 148 Q414 120 408 102"/>
+    <path d="M560 146 Q558 124 562 108"/>
+  </g>
+  <!-- purple fog wisps -->
+  <ellipse cx="200" cy="100" rx="50" ry="12" fill="#7e57c2" opacity="0.12"/>
+  <ellipse cx="500" cy="95" rx="60" ry="14" fill="#5e35b1" opacity="0.1"/>
+</svg>
