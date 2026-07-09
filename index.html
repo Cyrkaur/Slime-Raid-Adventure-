@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Slime Adventure: Raid of the Slimes</title>
+<link rel="stylesheet" href="styles/main.css">
+</head>
+<body>
+<!-- Ambient world layer (idle-gacha living background) -->
+<div class="world-ambient" aria-hidden="true">
+    <div class="world-sky"></div>
+    <div class="world-glow"></div>
+    <div class="world-motes" id="worldMotes"></div>
+    <div class="world-gel-blobs">
+        <span class="gel-blob b1"></span>
+        <span class="gel-blob b2"></span>
+        <span class="gel-blob b3"></span>
+        <span class="gel-blob b4"></span>
+    </div>
+</div>
+
+<div class="game">
+    <!--
+      Shell order (top → bottom):
+      1) Title banner (currencies inside bottom of banner)
+      2) Wilds Patrol
+      3) Slime Haven
+      4) Tabs + campaign / other content
+    -->
+    <div class="top-section">
+        <header class="game-hero">
+            <div class="hero-shimmer" aria-hidden="true"></div>
+            <div class="hero-blobs" aria-hidden="true">
+                <span class="hero-blob hb1"></span>
+                <span class="hero-blob hb2"></span>
+                <span class="hero-blob hb3"></span>
+            </div>
+            <div class="hero-top-row">
+                <div class="brand-lockup hero-brand">
+                    <span class="brand-orb" aria-hidden="true"></span>
+                    <div class="player-lv-chip">Lv <strong id="playerLevel">1</strong> <span id="playerExpText" class="player-exp-text"></span></div>
+                </div>
+                <div class="top-actions">
+                    <button class="icon-btn" onclick="toggleDarkMode()" data-tip-title="Dark Mode" data-tip="Toggle a darker UI theme for low light.">🌙</button>
+                    <button class="icon-btn icon-btn-save" onclick="saveGame()" data-tip-title="Save Game" data-tip="Write your progress to this browser (local save).">💾</button>
+                    <button class="icon-btn" onclick="exportSave()" data-tip-title="Export Save" data-tip="Download a backup file you can import later or on another device.">📤</button>
+                    <button class="icon-btn icon-btn-danger" onclick="startFreshGame()" data-tip-title="New Game" data-tip="Wipe current progress and start fresh. This cannot be undone!">🆕</button>
+                </div>
+            </div>
+            <h1>SLIME ADVENTURE</h1>
+            <p class="hero-sub">RAID OF THE SLIMES</p>
+            <div class="hero-tagline">Collect · Fuse · Conquer</div>
+            <!-- Currencies live at the bottom of the title banner -->
+            <div class="gold-bar currency-bar hero-currency" id="currencyBar">
+                <span class="currency-chip chip-gold" data-tip-title="🪙 Gold" data-tip="Main soft currency. Spent on workshop upgrades, enhancing artifacts, guild, and many shop purchases. Earned from stages, dungeons, quests, and sales.">
+                    <span class="chip-ico">🪙</span><span id="goldDisplay">0</span>
+                </span>
+                <span class="currency-chip chip-shard" data-tip-title="💎 Slime Shards" data-tip="Summon currency for Regular pulls (Common–Epic pool). Drop from campaign, arena, dungeons, dailies, and login rewards.">
+                    <span class="chip-ico">💎</span><span id="slimeShardDisplay">0</span>
+                </span>
+                <span class="currency-chip chip-divine" data-tip-title="✨ Divine Shards" data-tip="Premium summon currency for Premium banners (Rare–Legendary). Also used for energy refills and high-end crafts. Earned from bosses and milestones.">
+                    <span class="chip-ico">✨</span><span id="divineDisplay">0</span>
+                </span>
+                <span class="currency-chip chip-void" data-tip-title="🕳️ Void Shards" data-tip="Endgame currency for Ancient Void summons (Epic–Mythic). Comes from Void Tower and late-game rewards.">
+                    <span class="chip-ico">🕳️</span><span id="voidShardDisplay">0</span>
+                </span>
+                <span class="currency-chip chip-book" data-tip-title="📜 Skill Books" data-tip="Used to upgrade a slime’s skills. Craft, find in rewards, or buy when available.">
+                    <span class="chip-ico">📜</span><span id="skillBookDisplay">0</span>
+                </span>
+                <span class="currency-chip chip-energy" data-tip-title="⚡ Energy" data-tip="Spent to run campaign stages. Regenerates over time (~1 every 2 minutes). Refill with Divine Shards or Explorer Tonic.">
+                    <span class="chip-ico">⚡</span><span id="energyDisplay">100</span><span class="chip-sep">/</span><span id="maxEnergyDisplay">100</span>
+                </span>
+            </div>
+        </header>
+
+        <!-- Wilds Patrol — always visible under the title banner -->
+        <div id="idleMarch" class="idle-march idle-march-shell ch-theme-1 is-walking">
+            <div class="idle-march-hud">
+                <div class="im-hud-left">
+                    <div class="im-title" id="idleMarchTitle">🌲 Wilds Patrol</div>
+                    <div class="im-rate" id="idleMarchRate">~ gold / min</div>
+                </div>
+                <div class="im-hud-gains">
+                    <span class="im-gain">🪙 <b id="idleMarchGold">0</b></span>
+                    <span class="im-gain">🍮 <b id="idleMarchJelly">0</b></span>
+                    <span class="im-gain">💎 <b id="idleMarchShards">0</b></span>
+                    <span class="im-gain">⚔️ <b id="idleMarchKills">0</b></span>
+                </div>
+                <button type="button" id="idleMarchPauseBtn" class="im-pause-btn" onclick="toggleIdleMarchPause()">⏸ Pause</button>
+            </div>
+            <div class="idle-march-stage">
+                <div class="im-sky"></div>
+                <div class="im-sun" aria-hidden="true"></div>
+                <div class="im-clouds"></div>
+                <div class="im-far"></div>
+                <div class="im-mid" id="idleMarchMid"></div>
+                <div class="im-props" id="idleMarchProps" aria-hidden="true"></div>
+                <div class="im-path"></div>
+                <div class="im-ground"></div>
+                <div class="im-ground-line"></div>
+                <div class="im-dust" id="idleMarchDust" aria-hidden="true"></div>
+                <div id="idleMarchParty" class="im-party"></div>
+                <div id="idleMarchFoe" class="im-foe-slot"></div>
+                <div id="idleMarchFx" class="im-fx" aria-hidden="true"></div>
+                <div class="im-vignette"></div>
+            </div>
+            <div class="idle-march-feed" id="idleMarchFeed"></div>
+        </div>
+
+        <!-- Your slimes -->
+        <div class="haven-bar">
+            <div class="haven-header">
+                <strong><span class="haven-pulse-dot"></span> 🐾 Slime Haven</strong>
+                <span class="haven-count" id="havenSlimeCount">0 slimes</span>
+            </div>
+            <div class="haven-grid" id="havenGrid"></div>
+        </div>
+
+        <!-- Navigation tabs -->
+        <div class="tabs" role="tablist">
+            <div class="tab active" onclick="switchTab(0)" data-tab="0"><span class="tab-ico">🗺️</span><span class="tab-lbl">Campaign</span></div>
+            <div class="tab" onclick="switchTab(1)" data-tab="1"><span class="tab-ico">🏰</span><span class="tab-lbl">Dungeons</span></div>
+            <div class="tab" onclick="switchTab(2)" data-tab="2"><span class="tab-ico">✨</span><span class="tab-lbl">Summon</span></div>
+            <div class="tab" onclick="switchTab(3)" data-tab="3"><span class="tab-ico">📋</span><span class="tab-lbl">Manage</span></div>
+            <div class="tab" onclick="switchTab(4)" data-tab="4"><span class="tab-ico">🎒</span><span class="tab-lbl">Items</span></div>
+            <div class="tab" onclick="switchTab(5)" data-tab="5"><span class="tab-ico">👤</span><span class="tab-lbl">Player</span></div>
+            <div class="tab" onclick="switchTab(6)" data-tab="6"><span class="tab-ico">⚗️</span><span class="tab-lbl">Alchemy</span></div>
+            <div class="tab" onclick="switchTab(7)" data-tab="7"><span class="tab-ico">🔨</span><span class="tab-lbl">Workshop</span></div>
+            <div class="tab" onclick="switchTab(8)" data-tab="8"><span class="tab-ico">🏪</span><span class="tab-lbl">Shop</span></div>
+            <div class="tab" onclick="switchTab(9)" data-tab="9"><span class="tab-ico">🌌</span><span class="tab-lbl">Endgame</span></div>
+            <div class="tab" onclick="switchTab(10)" data-tab="10"><span class="tab-ico">📊</span><span class="tab-lbl">Records</span></div>
+        </div>
+    </div>
+
+    <!-- CAMPAIGN TAB (Raid-style) -->
+    <div id="tab0" class="content active">
+        <div class="panel panel-scenic panel-campaign">
+            <div class="panel-scenic-bg" aria-hidden="true"></div>
+            <h2 class="panel-title"><span class="panel-title-ico">🗺️</span> Campaign</h2>
+            <p class="panel-lead">Clear stages in order. Earn stars, sweep farms, and unlock the world.</p>
+
+            <div class="campaign-header">
+                <div class="energy-bar-wrap">
+                    <div class="energy-bar"><div id="energyFill" class="energy-fill" style="width:100%"></div></div>
+                    <div class="energy-text">
+                        <span>⚡ <strong id="energyText">100/100</strong></span>
+                        <span id="energyRegenText" style="opacity:0.7;">+1 every ~2m</span>
+                    </div>
+                </div>
+                <button onclick="refillEnergy('divine')" style="width:auto; min-height:38px; padding:6px 12px; font-size:10px;">✨ Refill (10 Divine)</button>
+                <button onclick="refillEnergy('tonic')" style="width:auto; min-height:38px; padding:6px 12px; font-size:10px; background:#224422;">🧪 Tonic +30</button>
+            </div>
+
+            <div class="campaign-mode-tabs">
+                <button id="modeNormal" class="active" onclick="setCampaignMode('normal')">Normal</button>
+                <button id="modeHard" onclick="setCampaignMode('hard')">Hard</button>
+                <button id="modeNightmare" onclick="setCampaignMode('nightmare')">Nightmare</button>
+            </div>
+
+            <div class="campaign-progress-overall">
+                <div style="display:flex; justify-content:space-between;">
+                    <span>Overall Campaign</span>
+                    <span id="campaignOverallText">0%</span>
+                </div>
+                <div class="bar"><div id="campaignOverallBar" class="bar-fill" style="width:0%"></div></div>
+            </div>
+
+            <div id="chapterScroll" class="chapter-scroll"></div>
+
+            <div id="campaignVista" class="campaign-vista ch-theme-1" aria-hidden="false"></div>
+
+            <h3 class="stage-section-title" id="selectedChapterTitle">Chapter Stages</h3>
+            <div id="stageGrid" class="stage-grid"></div>
+
+            <div id="campaignDefaultTeamBar" class="campaign-default-display" style="margin-top:10px;">Default team: not set</div>
+            <div class="campaign-side-note">
+                💡 1★ Clear • 2★ Fast win (≤ turn limit) • 3★ No allies defeated. 3-star stages can be <strong>Swept</strong> for quick rewards. Participating slimes earn EXP!
+            </div>
+        </div>
+    </div>
+
+    <!-- DUNGEONS TAB -->
+    <div id="tab1" class="content">
+        <div class="panel panel-scenic panel-dungeon">
+            <div class="panel-scenic-bg" aria-hidden="true"></div>
+            <h2 class="panel-title"><span class="panel-title-ico">🏰</span> Dungeons &amp; Boss Raids</h2>
+            <div class="collapsible-header" onclick="toggleSection('regularDungeons')">
+                <span><strong>Regular Dungeons</strong></span><span class="chevron">▼</span>
+            </div>
+            <div id="regularDungeonsContent" class="collapsible-content collapsed">
+                <div class="explore-card" id="card-forest_depths"><h3>🌲 Forest Depths</h3><button onclick="runDungeon('forest_depths')">Enter</button><div id="lock-forest_depths" class="locked-text" style="display:none;"></div></div>
+                <div class="explore-card" id="card-crystal_caverns"><h3>💎 Crystal Caverns</h3><button onclick="runDungeon('crystal_caverns')">Enter</button><div id="lock-crystal_caverns" class="locked-text" style="display:none;"></div></div>
+                <div class="explore-card" id="card-shadow_abyss"><h3>🕳️ Shadow Abyss</h3><button onclick="runDungeon('shadow_abyss')">Enter</button><div id="lock-shadow_abyss" class="locked-text" style="display:none;"></div></div>
+                <div class="explore-card" id="card-ancient_temple"><h3>🏛️ Ancient Temple</h3><button onclick="runDungeon('ancient_temple')">Enter</button><div id="lock-ancient_temple" class="locked-text" style="display:none;"></div></div>
+                <div class="explore-card" id="card-molten_core"><h3>🌋 Molten Core</h3><button onclick="runDungeon('molten_core')">Enter</button><div id="lock-molten_core" class="locked-text" style="display:none;"></div></div>
+                <div class="explore-card" id="card-glacial_spire"><h3>❄️ Glacial Spire</h3><button onclick="runDungeon('glacial_spire')">Enter</button><div id="lock-glacial_spire" class="locked-text" style="display:none;"></div></div>
+                <div class="explore-card" id="card-thunder_sanctum"><h3>⚡ Thunder Sanctum</h3><button onclick="runDungeon('thunder_sanctum')">Enter</button><div id="lock-thunder_sanctum" class="locked-text" style="display:none;"></div></div>
+                <div class="explore-card" id="card-abyssal_throne"><h3>🌑 Abyssal Throne</h3><button onclick="runDungeon('abyssal_throne')">Enter</button><div id="lock-abyssal_throne" class="locked-text" style="display:none;"></div></div>
+                <div class="explore-card" id="card-origin_core"><h3>🔷 Origin Core</h3><button onclick="runDungeon('origin_core')">Enter</button><div id="lock-origin_core" class="locked-text" style="display:none;"></div></div>
+            </div>
+
+            <div style="margin:10px 0 6px 0;">
+                <button onclick="useBattleElixir()" style="background:#224422; border-color:#aaff99;">🧪 Use Battle Elixir (+25% power for next fight)</button>
+            </div>
+
+            <div class="collapsible-header" onclick="toggleSection('bossRaids')" style="margin-top:10px; background:#2a4422; border-color:#aaff99;">
+                <span><strong>👹 Boss Raids</strong> <small style="color:#ffdd88;">(Click header to open)</small></span><span class="chevron">▼</span>
+            </div>
+            <div id="bossRaidsContent" class="collapsible-content collapsed">
+                <div class="explore-card" id="card-fire_dragon"><h3>🐉 Fire Dragon</h3><p style="font-size:11px;">Element: Fire • Recommended: Water / Ice</p><button onclick="prepareForBossFight('fire_dragon')">Prepare Team</button><div id="lock-fire_dragon" class="locked-text" style="display:none;"></div></div>
+                <div class="explore-card" id="card-stone_golem"><h3>🦂 Stone Golem</h3><p style="font-size:11px;">Element: Earth • Recommended: Wind / Lightning</p><button onclick="prepareForBossFight('stone_golem')">Prepare Team</button><div id="lock-stone_golem" class="locked-text" style="display:none;"></div></div>
+                <div class="explore-card" id="card-ancient_treant"><h3>🌿 Ancient Treant</h3><p style="font-size:11px;">Element: Plant • Recommended: Fire / Lava</p><button onclick="prepareForBossFight('ancient_treant')">Prepare Team</button><div id="lock-ancient_treant" class="locked-text" style="display:none;"></div></div>
+                <div class="explore-card" id="card-shadow_lich"><h3>💀 Shadow Lich</h3><p style="font-size:11px;">Element: Shadow • Recommended: Light / Spirit</p><button onclick="prepareForBossFight('shadow_lich')">Prepare Team</button><div id="lock-shadow_lich" class="locked-text" style="display:none;"></div></div>
+                <div class="explore-card" id="card-storm_sovereign"><h3>🌩️ Storm Sovereign</h3><p style="font-size:11px;">Element: Storm • Recommended: Metal / Crystal</p><button onclick="prepareForBossFight('storm_sovereign')">Prepare Team</button><div id="lock-storm_sovereign" class="locked-text" style="display:none;"></div></div>
+                <div class="explore-card" id="card-divine_colossus"><h3>✨ Divine Colossus</h3><p style="font-size:11px;">Element: Light • Recommended: Shadow / Void</p><button onclick="prepareForBossFight('divine_colossus')">Prepare Team</button><div id="lock-divine_colossus" class="locked-text" style="display:none;"></div></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SUMMON TAB -->
+    <div id="tab2" class="content">
+        <div class="panel panel-scenic panel-summon">
+            <div class="panel-scenic-bg" aria-hidden="true"></div>
+            <h2 class="panel-title"><span class="panel-title-ico">🔮</span> Slime Summoning</h2>
+            <p class="panel-lead">Summon champions with Slime Shards. Pity guarantees stronger pulls!</p>
+
+            <div id="activeBanner" class="summon-banner featured">
+                <div class="summon-banner-glow" aria-hidden="true"></div>
+                <div style="font-size:13px; color:#ffdd77; margin-bottom:4px;">⭐ Featured Banner</div>
+                <div id="bannerName" style="font-size:15px; font-weight:bold;">Celestial Awakening</div>
+                <div id="bannerInfo" style="font-size:11px; opacity:0.85; margin-top:4px;">Rate-up: Light, Spirit, Celestial faction • +50% Epic+</div>
+            </div>
+
+            <div class="explore-card">
+                <h3>💎 Regular Summon</h3>
+                <p style="font-size:11px;">Cost: 90 Slime Shards • Common–Epic pool</p>
+                <div class="pity-bar"><div id="pityRegularFill" class="pity-fill" style="width:0%"></div></div>
+                <small>Pity: <span id="pityRegularText">0</span>/50 (guaranteed Epic+)</small>
+                <button onclick="performSummon('regular')" style="margin-top:8px;">Summon x1 (90 Shards)</button>
+                <button onclick="performSummon('regular', 10)" style="background:#224422; border-color:#aaff99;">Summon x10 (800 Shards)</button>
+            </div>
+
+            <div class="explore-card" style="border-color:#ffdd77;">
+                <h3>✨ Premium Summon</h3>
+                <p style="font-size:11px;">Cost: 280 Divine Shards • Rare–Legendary pool</p>
+                <div class="pity-bar"><div id="pityPremiumFill" class="pity-fill" style="width:0%"></div></div>
+                <small>Pity: <span id="pityPremiumText">0</span>/30 (guaranteed Legendary)</small>
+                <button onclick="performSummon('premium')" style="margin-top:8px; background:#2a3355; border-color:#8899ff;">Premium x1 (280 Divine)</button>
+                <button onclick="performSummon('premium', 10)" style="background:#2a3355; border-color:#ffdd77;">Premium x10 (2500 Divine)</button>
+            </div>
+
+            <div class="explore-card" style="border-color:#aa66ff;">
+                <h3>🕳️ Ancient Void Summon</h3>
+                <p style="font-size:11px;">Cost: 150 Void Shards • Epic–Mythic pool (endgame)</p>
+                <div class="pity-bar"><div id="pityAncientFill" class="pity-fill" style="width:0%"></div></div>
+                <small>Pity: <span id="pityAncientText">0</span>/20 (guaranteed Legendary+)</small>
+                <button onclick="performSummon('ancient')" style="margin-top:8px; background:#331a44; border-color:#aa66ff;">Ancient x1 (150 Void)</button>
+            </div>
+
+            <div style="font-size:10px; opacity:0.7; margin-top:10px; text-align:center;">
+                Slime Shards drop from exploration, dungeons, quests, and daily login.
+            </div>
+        </div>
+    </div>
+
+    <!-- MANAGE TAB -->
+    <div id="tab3" class="content">
+        <div class="panel panel-scenic panel-manage">
+            <div class="panel-scenic-bg" aria-hidden="true"></div>
+            <h2 class="panel-title"><span class="panel-title-ico">📋</span> Champion Management</h2>
+            <p class="panel-lead">Train, ascend, fuse, breed, and gear your roster.</p>
+
+            <button onclick="openSlimeManagementModal()" 
+                style="margin-bottom:12px; background:#1a4422; border-color:#aaff99; font-size:13px;">
+                📋 View All Slimes (Sort & Filter)
+            </button>
+
+            <div class="collapsible-header" onclick="toggleSection('slimeActions')"><span><strong>🐾 Slime Actions</strong></span><span class="chevron">▼</span></div>
+            <div id="slimeActionsContent" class="collapsible-content collapsed">
+                <button id="slimePartyBtn" onclick="slimeParty()">🎉 Slime Party</button>
+                <div id="slimePartyStatus" style="font-size:10px; text-align:center; margin-top:-4px; margin-bottom:6px; color:#aaff99; opacity:0.75;"></div>
+                <button onclick="ascendSlime()">⬆️ Ascend Slime (3-4 stages)</button>
+                <button onclick="upgradeSlimeSkill()">📜 Upgrade Skill (Skill Books)</button>
+                <button onclick="fuseSlimes()">🔥 Fuse Slimes (synergy bonus)</button>
+                <button onclick="openLockModal()">🔒 Lock / Unlock Slimes</button>
+            </div>
+
+            <div class="collapsible-header" onclick="toggleSection('artifacts')" style="margin-top:12px;"><span><strong>⚔️ Artifacts & Gear</strong></span><span class="chevron">▼</span></div>
+            <div id="artifactsContent" class="collapsible-content collapsed">
+                <p style="font-size:11px; opacity:0.85;">Click a slime in the roster to equip artifacts. Craft gear in Alchemy.</p>
+                <div id="artifactInventoryPreview" style="font-size:11px; margin-bottom:8px;"></div>
+                <button onclick="enhanceRandomArtifact()">🔨 Enhance Random Artifact (50 Gold)</button>
+                <button onclick="reforgeRandomArtifact()">♻️ Reforge Substats (5 Refined + 2 Divine)</button>
+            </div>
+
+            <div class="collapsible-header" onclick="toggleSection('training')" style="margin-top:12px;"><span><strong>🏋️ Training (AFK)</strong></span><span class="chevron">▼</span></div>
+            <div id="trainingContent" class="collapsible-content collapsed">
+                <button onclick="openTrainingModal()">Send Slimes on Training Mission</button>
+            </div>
+
+            <div class="collapsible-header" onclick="toggleSection('breeding')" style="margin-top:12px;"><span><strong>🧬 Breeding</strong></span><span class="chevron">▼</span></div>
+            <div id="breedingContent" class="collapsible-content collapsed">
+                <button onclick="startBreeding()">Start Breeding (Normal)</button>
+                <button onclick="startBreeding(true)" style="background:#224422; border-color:#aaff99;">Start Breeding with Fertility Potion</button>
+            </div>
+
+            <div class="collapsible-header" onclick="toggleSection('research')" style="margin-top:12px;"><span><strong>🔬 Research</strong></span><span class="chevron">▼</span></div>
+            <div id="researchContent" class="collapsible-content collapsed">
+                <button onclick="slimeResearch()">🔬 Conduct Research<br><small>Low cost • Small permanent gains</small></button>
+                <button onclick="breakthroughResearch()">✨ Breakthrough Research<br><small>High cost • Big rewards (uses Catalyst)</small></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ITEMS TAB -->
+    <div id="tab4" class="content">
+        <div class="panel panel-scenic panel-items">
+            <div class="panel-scenic-bg" aria-hidden="true"></div>
+            <h2 class="panel-title"><span class="panel-title-ico">🎒</span> Inventory</h2>
+            <p class="panel-lead">Materials and currencies. Hover a tile for what it’s used for.</p>
+            <div id="inventoryGrid" class="inventory-grid"></div>
+        </div>
+    </div>
+
+    <!-- PLAYER TAB (Balanced Skills) -->
+    <div id="tab5" class="content">
+        <div class="panel panel-scenic panel-player">
+            <div class="panel-scenic-bg" aria-hidden="true"></div>
+            <h2 class="panel-title"><span class="panel-title-ico">👤</span> Slime Master Skills</h2>
+            <p class="panel-lead">Spend stat points to permanently empower your account.</p>
+            <div id="playerStats"></div>
+            <div style="margin-top:18px;">
+                <h3 style="margin-bottom:8px;">Invest Stat Points</h3>
+                <button onclick="spendStatPoint('taming')">Taming (+3% better rarity)</button>
+                <button onclick="spendStatPoint('alchemy')">Alchemy (+4% better yields)</button>
+                <button onclick="spendStatPoint('combat')">Combat (+2.5% team power)</button>
+                <button onclick="spendStatPoint('leadership')">Leadership (+1 slot every 4 points)</button>
+                <button onclick="spendStatPoint('endurance')">Endurance (+5% daily rewards)</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ALCHEMY TAB (IMPROVED) -->
+    <div id="tab6" class="content">
+        <div class="panel panel-scenic panel-alchemy">
+            <div class="panel-scenic-bg" aria-hidden="true"></div>
+            <h2 class="panel-title"><span class="panel-title-ico">⚗️</span> Alchemy Lab</h2>
+            <p class="panel-lead">Convert resources into powerful tools that boost every part of your adventure.</p>
+            
+            <div style="margin-bottom:12px; padding:8px; background:#0a2a1a; border-radius:8px; font-size:11px;">
+                <strong>Alchemy Stat Bonus:</strong> +<span id="alchemyBonus">0</span>% better yields &amp; success
+            </div>
+
+            <!-- Basic Recipes -->
+            <div class="collapsible-header" onclick="toggleSection('basicAlchemy')" style="margin-bottom:8px;">
+                <span><strong>Basic Recipes</strong></span><span class="chevron">▼</span>
+            </div>
+            <div id="basicAlchemyContent" class="collapsible-content collapsed">
+                <div class="recipe-row">
+                    <div>Training Scrolls<br><small>45 Wood</small></div>
+                    <button onclick="processMaterial('wood_to_scrolls')">Craft</button>
+                </div>
+                <div class="recipe-row">
+                    <div>Battle Elixir<br><small>30 Stone + 15 Jelly</small></div>
+                    <button onclick="processMaterial('stone_to_elixir')">Craft</button>
+                </div>
+                <div class="recipe-row">
+                    <div>Healing Salve<br><small>25 Herbs + 10 Jelly</small></div>
+                    <button onclick="processMaterial('herbs_to_salve')">Craft</button>
+                </div>
+                <div class="recipe-row">
+                    <div>Fertility Potion<br><small>35 Jelly + 20 Berries</small></div>
+                    <button onclick="processMaterial('berries_to_fertility')">Craft</button>
+                </div>
+            </div>
+
+            <!-- Advanced Recipes -->
+            <div class="collapsible-header" onclick="toggleSection('advancedAlchemy')" style="margin:12px 0 8px 0;">
+                <span><strong>Advanced Recipes</strong></span><span class="chevron">▼</span>
+            </div>
+            <div id="advancedAlchemyContent" class="collapsible-content collapsed">
+                <div class="recipe-row">
+                    <div>Mana Infused Gel<br><small>15 Slime Essence + 12 Mana Shards</small></div>
+                    <button onclick="processMaterial('essence_to_mana')">Craft</button>
+                </div>
+                <div class="recipe-row">
+                    <div>Shadow Silk<br><small>20 Shadow Essence + 10 Crystal</small></div>
+                    <button onclick="processMaterial('shadow_to_silk')">Craft</button>
+                </div>
+                <div class="recipe-row">
+                    <div>Power Serum<br><small>25 Essence + 15 Mana + 10 Shadow</small></div>
+                    <button onclick="processMaterial('make_power_serum')">Craft</button>
+                </div>
+                <div class="recipe-row">
+                    <div>Alchemical Catalyst<br><small>30 Refined + 8 Divine + 15 Arcane</small></div>
+                    <button onclick="processMaterial('make_alchemical_catalyst')">Craft</button>
+                </div>
+                <div class="recipe-row">
+                    <div>Refined Essence (Core)<br><small>20 Slime Essence + 8 Jelly</small></div>
+                    <button onclick="processMaterial('refine_essence')">Craft</button>
+                </div>
+                <div class="recipe-row">
+                    <div>Explorer's Tonic<br><small>20 Herbs + 15 Jelly + 8 Wood</small></div>
+                    <button onclick="processMaterial('make_explorer_tonic')">Craft</button>
+                </div>
+            </div>
+
+            <!-- Artifact Forge -->
+            <div class="collapsible-header" onclick="toggleSection('artifactForge')" style="margin:12px 0 8px 0; background:#2a2244; border-color:#aa88ff;">
+                <span><strong>⚔️ Artifact Forge</strong></span><span class="chevron">▼</span>
+            </div>
+            <div id="artifactForgeContent" class="collapsible-content collapsed">
+                <div class="recipe-row">
+                    <div>Random Uncommon Gear<br><small>20 Stone + 15 Jelly + 5 Essence</small></div>
+                    <button onclick="craftArtifact('uncommon')">Forge</button>
+                </div>
+                <div class="recipe-row">
+                    <div>Random Rare Gear<br><small>15 Refined + 10 Crystal + 8 Mana</small></div>
+                    <button onclick="craftArtifact('rare')">Forge</button>
+                </div>
+                <div class="recipe-row">
+                    <div>Random Epic Set Piece<br><small>25 Refined + 5 Divine + 20 Arcane</small></div>
+                    <button onclick="craftArtifact('epic')">Forge</button>
+                </div>
+                <div class="recipe-row">
+                    <div>Slime Shards (conversion)<br><small>50 Mana → 30 Shards</small></div>
+                    <button onclick="transmuteManaToShards()">Transmute</button>
+                </div>
+                <div class="recipe-row">
+                    <div>Void Shards (conversion)<br><small>10 Divine + 30 Arcane → 5 Void</small></div>
+                    <button onclick="transmuteDivineToVoid()">Transmute</button>
+                </div>
+            </div>
+
+            <!-- Currency Transmutation -->
+            <div style="margin-top:16px; padding-top:12px; border-top: 2px solid #ffdd77;">
+                <h4 style="margin:0 0 8px 0; color:#ffdd99;">Currency Transmutation</h4>
+                <div class="recipe-row">
+                    <div>Gold → Mana Shards<br><small>100 Gold → 8 Mana</small></div>
+                    <button onclick="transmuteGoldToMana()">Transmute</button>
+                </div>
+                <div class="recipe-row">
+                    <div>Mana Shards → Divine Shards<br><small>50 Mana → 3 Divine</small></div>
+                    <button onclick="transmuteManaToDivine()">Transmute</button>
+                </div>
+            </div>
+
+            <!-- Consumables Section -->
+            <div style="margin-top:18px; padding-top:12px; border-top: 2px solid #ffdd77;">
+                <h4 style="margin:0 0 10px 0; color:#ffdd99;">🧪 Consumables (Use These!)</h4>
+                <div class="consumable-row">
+                    <button onclick="useHealingSalve()" style="background:#224422; border-color:#aaff99;">Use Healing Salve<br><small>Boost all slimes EXP</small></button>
+                    <button onclick="useExplorerTonic()" style="background:#224422; border-color:#aaff99;">Activate Explorer's Tonic<br><small id="tonicCount">0 charges</small></button>
+                </div>
+                <div style="font-size:10px; opacity:0.7; margin-top:6px;">Training Scrolls are used automatically when sending slimes on missions (toggle in training modal).</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- WORKSHOP TAB -->
+    <div id="tab7" class="content">
+        <div class="panel">
+            <h2>Workshop Upgrades</h2>
+            <div id="workshopUpgrades"></div>
+            <div style="margin-top:12px; font-size:11px; opacity:0.8;">
+                Refinery upgrades increase Refined Essence yield from alchemy.
+            </div>
+        </div>
+    </div>
+
+    <!-- SHOP TAB -->
+    <div id="tab8" class="content">
+        <div class="panel">
+            <h2>Shop</h2>
+            <button onclick="buyItem('jellyPack')">Buy Jelly Pack (50 Gold)</button>
+            <button onclick="buyItem('manaPack')">Buy Mana Pack (120 Gold)</button>
+            <button onclick="buyItem('woodPack')">Buy Wood Pack (40 Gold)</button>
+            <button onclick="buyItem('herbPack')">Buy Herb Pack (35 Gold)</button>
+            <button onclick="buyItem('shardPack')">Buy Slime Shards x50 (200 Gold)</button>
+            <button onclick="buyItem('skillBookPack')">Buy Skill Books x3 (150 Gold + 10 Mana)</button>
+        </div>
+    </div>
+
+    <!-- ENDGAME TAB -->
+    <div id="tab9" class="content">
+        <div class="panel">
+            <h2>Endgame</h2>
+
+            <div class="collapsible-header" onclick="toggleSection('dailyQuests')"><span><strong>📅 Daily & Weekly Quests</strong></span><span class="chevron">▼</span></div>
+            <div id="dailyQuestsContent" class="collapsible-content">
+                <div id="dailyQuestList"></div>
+                <h4 style="margin:12px 0 6px; color:#ffdd99;">Weekly Challenges</h4>
+                <div id="weeklyQuestList"></div>
+                <button onclick="claimLoginReward()" style="margin-top:10px; background:#224422; border-color:#ffdd77;">🎁 Claim Daily Login (<span id="loginStreakDisplay">0</span> day streak)</button>
+            </div>
+
+            <div style="margin-bottom:20px; margin-top:16px;">
+                <h3 style="margin-bottom:10px; color:#ffdd99;">Permanent Milestones</h3>
+                <div id="milestoneList" style="background:#0a2a1a; border:2px solid #ffdd77; border-radius:10px; padding:12px; font-size:12px; line-height:1.6;"></div>
+            </div>
+
+            <div class="collapsible-header" onclick="toggleSection('arenaSection')" style="background:#2a2244; border-color:#aa88ff;">
+                <span><strong>⚔️ Slime Arena (PvP)</strong></span><span class="chevron">▼</span>
+            </div>
+            <div id="arenaSectionContent" class="collapsible-content collapsed">
+                <p style="font-size:11px;">Rank: <strong id="arenaRank">1500</strong> • Wins: <span id="arenaWins">0</span> • Losses: <span id="arenaLosses">0</span></p>
+                <button onclick="setArenaDefense()">🛡️ Set Defense Team (4 slimes)</button>
+                <button onclick="runArenaBattle()">⚔️ Battle in Arena</button>
+            </div>
+
+            <div class="collapsible-header" onclick="toggleSection('guildSection')" style="margin-top:10px; background:#1a3322; border-color:#77ffaa;">
+                <span><strong>🏰 Slime Haven Guild</strong></span><span class="chevron">▼</span>
+            </div>
+            <div id="guildSectionContent" class="collapsible-content collapsed">
+                <div class="guild-level">Guild Lv <span id="guildLevel">1</span></div>
+                <p style="font-size:11px; text-align:center;" id="guildBonusText">+2% all slime power</p>
+                <button onclick="upgradeGuild()">Upgrade Guild (<span id="guildUpgradeCost">500</span> Gold)</button>
+            </div>
+
+            <div class="collapsible-header" onclick="toggleSection('factionWars')" style="margin-top:10px;">
+                <span><strong>🏴 Faction Wars</strong> <small>(Lv 40+)</small></span><span class="chevron">▼</span>
+            </div>
+            <div id="factionWarsContent" class="collapsible-content collapsed">
+                <p style="font-size:11px; opacity:0.85;">Send a full faction team for bonus rewards. Synergy: 3+ same faction = +15% power.</p>
+                <div id="factionWarButtons"></div>
+            </div>
+
+            <div style="margin-bottom:20px; margin-top:16px;">
+                <h3 style="margin-bottom:10px; color:#ffdd99;">Endless Void Tower</h3>
+                <p style="font-size:11px; opacity:0.85; margin-bottom:6px;">Requires Player Level 90 • Turn-based combat with scaling rewards</p>
+                <button id="voidTowerBtn" onclick="runVoidTower()">Climb the Void Tower (Floor <span id="voidFloor">1</span>)</button>
+            </div>
+            <div><button onclick="divineConvergence()">Perform Divine Convergence<br><small>Cost increases each time (starts at 30)</small></button></div>
+            <div style="margin-top:20px;">
+                <h3 style="margin-bottom:10px; color:#ffdd99;">🏆 Leaderboards (Local)</h3>
+                <div id="leaderboardList" style="background:#0a2a1a; border:2px solid #ffdd77; border-radius:10px; padding:12px; font-size:11px;"></div>
+            </div>
+            <div style="margin-top:20px;">
+                <h3 style="margin-bottom:10px; color:#ffdd99;">Lifetime Summary</h3>
+                <div id="lifetimeStats" style="background:#0a2a1a; border:2px solid #77ffaa; border-radius:10px; padding:12px; font-size:12px; line-height:1.5;"></div>
+            </div>
+            <div class="collapsible-header" onclick="toggleSection('prestigeSection')" style="margin-top:16px; background:#331a44; border-color:#cc88ff;">
+                <span><strong>✨ Slime Transcendence (Prestige)</strong></span><span class="chevron">▼</span>
+            </div>
+            <div id="prestigeSectionContent" class="collapsible-content collapsed">
+                <p style="font-size:11px; opacity:0.85;">Reset campaign map progress for permanent power. Requires 30+ campaign stars OR Lv 50.</p>
+                <p style="font-size:11px; text-align:center;">Transcendences: <strong id="prestigeCount">0</strong> • Bonus: <strong id="prestigeBonus">+0%</strong></p>
+                <button onclick="performSlimeTranscendence()" style="background:#2a2244; border-color:#cc88ff;">Transcend Campaign Progress</button>
+            </div>
+            <div class="save-row">
+                <button onclick="importSave()">📥 Import Save</button>
+                <button onclick="exportSave()">📤 Export Save</button>
+            </div>
+        </div>
+    </div>
+
+<!-- RECORDS / STATS TAB -->
+<div id="tab10" class="content">
+    <div class="panel">
+        <h2>📊 Records</h2>
+        <p style="font-size:11px; opacity:0.85; margin-bottom:16px;">Track your progress and achievements over your entire playthrough.</p>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+            <div style="background:#0a2a1a; border:2px solid #77ffaa; border-radius:10px; padding:14px;">
+                <h4 style="margin:0 0 8px 0; color:#aaff99;">Combat</h4>
+                <div id="combatStats"></div>
+            </div>
+
+            <div style="background:#0a2a1a; border:2px solid #77ffaa; border-radius:10px; padding:14px;">
+                <h4 style="margin:0 0 8px 0; color:#aaff99;">Progression</h4>
+                <div id="progressionStats"></div>
+            </div>
+
+            <div style="background:#0a2a1a; border:2px solid #77ffaa; border-radius:10px; padding:14px;">
+                <h4 style="margin:0 0 8px 0; color:#aaff99;">Collection</h4>
+                <div id="collectionStats"></div>
+            </div>
+
+            <div style="background:#0a2a1a; border:2px solid #77ffaa; border-radius:10px; padding:14px;">
+                <h4 style="margin:0 0 8px 0; color:#aaff99;">Other</h4>
+                <div id="otherStats"></div>
+            </div>
+        </div>
+
+        <!-- Trait Collection Section -->
+        <div style="margin-top:16px;">
+            <h3 style="margin-bottom:8px; color:#ffdd99;">Trait Collection</h3>
+            <div style="background:#0a2a1a; border:2px solid #aaff99; border-radius:10px; padding:14px; font-size:12px;">
+                <div id="traitStats"></div>
+            </div>
+        </div>
+    </div>
+</div><!-- end .game -->
+
+<!-- BOSS MODAL -->
+<div id="bossTeamModal" class="modal">
+    <div class="modal-content">
+        <h2 id="modalBossTitle">Prepare for Boss Fight</h2>
+        <p id="modalBossInfo" style="margin-bottom:10px; font-size:12px;"></p>
+        <p style="color:#ffdd77; font-size:12px; margin-bottom:10px;">Select up to <strong>4 slimes</strong>.</p>
+        <div id="slimeSelectionList" style="max-height:300px; overflow-y:auto; margin-bottom:14px;"></div>
+        <div id="summaryText" style="margin:10px 0; padding:10px; background:#0a2a1a; border-radius:8px; font-size:12px; min-height:42px;"></div>
+        <div style="display:flex; gap:10px; margin-top:10px;">
+            <button onclick="startBossFight()" style="flex:1;">Start Fight!</button>
+            <button onclick="closeBossModal()" style="flex:1; background:#552222; border-color:#ffaa66;">Cancel</button>
+        </div>
+        <div id="selectionCount" style="text-align:center; margin-top:8px; font-size:12px; color:#aaff99;"></div>
+    </div>
+</div>
+
+<!-- TRAINING MISSION MODAL -->
+<div id="trainingModal" class="modal">
+    <div class="modal-content">
+        <h2>🏋️ Training Missions</h2>
+        <p style="font-size:12px; margin-bottom:12px;">Longer missions give better EXP per minute. Use Training Scrolls for bonus EXP!</p>
+        <div id="missionList"></div>
+        <div id="slimeSelectionForTraining" style="margin-top:16px; display:none;">
+            <h3 style="margin-bottom:8px;">Select Slimes to Send</h3>
+            <div style="margin-bottom:10px;">
+                <label style="font-size:12px; cursor:pointer;">
+                    <input type="checkbox" id="useTrainingScrollCheck"> Use 1 Training Scroll (+50% EXP on this mission)
+                </label>
+            </div>
+            <div id="trainingSlimeList" style="max-height:220px; overflow-y:auto;"></div>
+            <div style="margin-top:10px; display:flex; gap:10px;">
+                <button onclick="confirmSendOnMission()" style="flex:1;">Send on Mission</button>
+                <button onclick="closeTrainingModal()" style="flex:1; background:#552222; border-color:#ffaa66;">Cancel</button>
+            </div>
+        </div>
+        <div style="text-align:center; margin-top:12px;">
+            <button onclick="closeTrainingModal()" style="background:#552222; border-color:#ffaa66;">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- LOCK SLIME MODAL -->
+<div id="lockModal" class="modal">
+    <div class="modal-content">
+        <h2>🔒 Lock / Unlock Slimes</h2>
+        <p style="font-size:12px; margin-bottom:12px;">Locked slimes cannot be used for fusing.</p>
+        <div id="lockSlimeList" style="max-height:400px; overflow-y:auto; margin-bottom:16px;"></div>
+        <div style="text-align:center;">
+            <button onclick="closeLockModal()" style="background:#552222; border-color:#ffaa66;">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- SLIME MANAGEMENT MODAL (Improved UI) -->
+<div id="slimeManagementModal" class="modal">
+    <div class="modal-content" style="max-width:720px; width:95%;">
+        <h2>📋 All Slimes</h2>
+        
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px; align-items:center;">
+            <!-- Search -->
+            <input type="text" id="slimeSearch" placeholder="Search name or element..." 
+                oninput="filterSlimeList()" 
+                style="flex:1; min-width:180px; padding:8px; background:#113322; border:2px solid #77ffaa; border-radius:6px; color:#bbffdd;">
+            
+            <!-- Sort -->
+            <select id="slimeSort" onchange="filterSlimeList()" style="padding:8px; background:#113322; border:2px solid #77ffaa; border-radius:6px; color:#bbffdd;">
+                <option value="power-desc">Power (High → Low)</option>
+                <option value="power-asc">Power (Low → High)</option>
+                <option value="level-desc">Level (High → Low)</option>
+                <option value="rarity-desc">Rarity (Best First)</option>
+                <option value="name-asc">Name (A → Z)</option>
+            </select>
+            
+            <!-- Filters -->
+            <select id="slimeFilterRarity" onchange="filterSlimeList()" style="padding:8px; background:#113322; border:2px solid #77ffaa; border-radius:6px; color:#bbffdd;">
+                <option value="">All Rarities</option>
+                <option value="Common">Common</option>
+                <option value="Uncommon">Uncommon</option>
+                <option value="Rare">Rare</option>
+                <option value="Epic">Epic</option>
+                <option value="Legendary">Legendary</option>
+                <option value="Mythic">Mythic</option>
+            </select>
+            
+            <select id="slimeFilterElement" onchange="filterSlimeList()" style="padding:8px; background:#113322; border:2px solid #77ffaa; border-radius:6px; color:#bbffdd;">
+                <option value="">All Elements</option>
+            </select>
+            
+            <label style="font-size:12px; display:flex; align-items:center; gap:4px; cursor:pointer;">
+                <input type="checkbox" id="filterHasTrait" onchange="filterSlimeList()"> Has Trait
+            </label>
+            <label style="font-size:12px; display:flex; align-items:center; gap:4px; cursor:pointer;">
+                <input type="checkbox" id="filterFavorite" onchange="filterSlimeList()"> ⭐ Favorites
+            </label>
+        </div>
+
+        <div id="slimeManagementList" class="mgmt-list"></div>
+
+        <div style="text-align:center; margin-top:14px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+            <button onclick="bulkLockSelected()" style="width:auto; min-height:38px; padding:6px 16px; background:#2a3042; border-color:#aaff99;">🔒 Bulk Lock Selected</button>
+            <button onclick="bulkUnlockSelected()" style="width:auto; min-height:38px; padding:6px 16px; background:#2a3042; border-color:#aaff99;">🔓 Bulk Unlock Selected</button>
+            <button onclick="closeSlimeManagementModal()" style="width:auto; min-height:38px; padding:6px 16px; background:#552222; border-color:#ffaa66;">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- COMBAT MODAL — Raid-style stage battle -->
+<div id="combatModal" class="modal">
+    <div class="modal-content combat-modal-content">
+        <div class="combat-top-bar">
+            <h2 id="combatTitle" style="margin:0; flex:1;">⚔️ Stage Battle</h2>
+            <div class="speed-controls" style="margin:0;">
+                <button type="button" id="combatTopFuseBtn" class="combat-top-fuse-btn" onclick="onCombatTopFuseClick()" title="Arena Fusion" style="display:none;">🧬 FUSE</button>
+                <button id="combatSfxBtn" onclick="toggleCombatSfx()" title="Toggle combat sound" style="width:auto; min-height:34px; padding:4px 12px; font-size:11px;">🔊 SFX</button>
+                <button id="combatAutoBtn" onclick="toggleCombatAuto()" style="width:auto; min-height:34px; padding:4px 12px; font-size:11px;">▶ Auto</button>
+                <button id="speed1" class="active" onclick="setCombatSpeed(1)">1x</button>
+                <button id="speed2" onclick="setCombatSpeed(2)">2x</button>
+                <button id="speed3" onclick="setCombatSpeed(3)">3x</button>
+            </div>
+        </div>
+
+        <div id="combatTurnBanner" class="combat-turn-banner">Get ready…</div>
+
+        <!-- Always-visible Arena fuse dock (above the stage — hard to miss) -->
+        <div id="combatFuseDock" class="combat-fuse-dock" hidden aria-live="polite">
+            <button type="button" id="combatFuseDockBtn" class="combat-fuse-dock-btn" disabled>
+                <span class="fuse-dock-icon">🧬</span>
+                <span class="fuse-dock-label">FUSE</span>
+                <span class="fuse-dock-meta" id="combatFuseDockMeta">—</span>
+            </button>
+            <div id="combatFuseDockHint" class="combat-fuse-dock-hint">Arena Fusion</div>
+        </div>
+
+        <div class="combat-arena" id="combatArena" data-theme="default">
+            <!-- Deep scenic stage: sky → horizon → floor → fighters -->
+            <div class="arena-scenic" aria-hidden="true">
+                <div class="arena-sky"></div>
+                <div class="arena-clouds" id="arenaClouds"></div>
+                <div class="arena-far"></div>
+                <div class="arena-mid"></div>
+                <div class="arena-paint"></div>
+                <div class="arena-props" id="arenaProps"></div>
+                <div class="arena-horizon"></div>
+                <div class="arena-ground-plane">
+                    <div class="arena-floor-grid"></div>
+                    <div class="arena-floor-ring"></div>
+                </div>
+                <div class="arena-ground-glow"></div>
+                <div class="arena-light-rays"></div>
+                <div class="arena-vignette"></div>
+                <div class="arena-particles" id="arenaParticles"></div>
+            </div>
+            <div class="arena-camera-dim" id="arenaCameraDim" aria-hidden="true"></div>
+
+            <!-- Independent FX layer so re-renders don't wipe floaters -->
+            <div id="combatFxLayer" class="combat-fx-layer" aria-hidden="true"></div>
+            <div id="combatSkillCallout" class="combat-skill-callout" style="display:none;"></div>
+
+            <!-- Raid-style ¾ side camera: allies front-left, enemies back-right, both on the floor -->
+            <div class="arena-stage" id="arenaStage">
+                <div class="battlefield-floor">
+                    <div class="arena-lane arena-lane-enemy">
+                        <div class="combat-side-label enemy-label">ENEMIES</div>
+                        <div class="lane-platform"></div>
+                        <div class="combat-row combat-row-enemies" id="combatEnemies"></div>
+                    </div>
+
+                    <div class="combat-vs-divider"><span id="combatFieldLabel">⚡ BATTLEFIELD ⚡</span></div>
+
+                    <div class="arena-lane arena-lane-ally">
+                        <div class="combat-side-label ally-label">YOUR TEAM</div>
+                        <div class="lane-platform"></div>
+                        <div class="combat-row combat-row-allies" id="combatAllies"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Manual action bar (Raid-style) -->
+        <div id="combatActionBar" class="combat-action-bar" style="display:none;">
+            <div id="combatActorInfo" class="combat-actor-info">Select an action</div>
+            <div id="combatTargetHint" class="combat-target-hint">Click an enemy to target</div>
+            <div id="combatSkillButtons" class="combat-skill-buttons"></div>
+            <!-- Filled by showCombatActionBar when Arena Fusion is available -->
+            <div id="combatFuseInfo" class="combat-fuse-info" style="display:none;"></div>
+        </div>
+
+        <details class="combat-log-wrap">
+            <summary class="combat-log-summary">📜 Battle log (optional)</summary>
+            <div class="combat-log" id="combatLog"></div>
+        </details>
+
+        <div style="text-align:center; margin-top:10px; display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
+            <button id="combatCloseBtn" onclick="closeCombatModal()" style="display:none; width:auto; min-height:40px; padding:8px 20px; background:#552222; border-color:#ffaa66;">Continue</button>
+        </div>
+    </div>
+</div>
+
+<!-- SLIME DETAIL MODAL -->
+<div id="slimeDetailModal" class="modal">
+    <div class="modal-content" style="max-width:680px;">
+        <h2 id="detailSlimeName">Slime Details</h2>
+        <div id="detailSlimeBody"></div>
+        <div style="display:flex; gap:8px; margin-top:12px; flex-wrap:wrap;">
+            <button onclick="toggleFavoriteDetail()" id="detailFavBtn" style="width:auto; min-height:38px; padding:6px 14px;">⭐ Favorite</button>
+            <button onclick="toggleLockDetail()" id="detailLockBtn" style="width:auto; min-height:38px; padding:6px 14px;">🔒 Lock</button>
+            <button onclick="closeSlimeDetailModal()" style="width:auto; min-height:38px; padding:6px 14px; background:#552222; border-color:#ffaa66;">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- CAMPAIGN STAGE MODAL -->
+<div id="campaignStageModal" class="modal">
+    <div class="modal-content" style="max-width:640px;">
+        <h2 id="campaignStageTitle">Stage</h2>
+        <div id="campaignStageBody" style="font-size:12px; line-height:1.5;"></div>
+        <div id="campaignTeamSection" class="campaign-team-section">
+            <div class="campaign-team-toolbar">
+                <strong style="font-size:12px;">🐾 Campaign Team (up to 4)</strong>
+                <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                    <button id="campaignUseDefaultBtn" onclick="toggleCampaignUseDefault()" style="background:#1a3355; border-color:#8899ff;">⚡ Use Default Team</button>
+                    <button onclick="saveCampaignDefaultTeam()" style="background:#224422; border-color:#ffdd77;">💾 Save as Default Team</button>
+                </div>
+            </div>
+            <div id="campaignDefaultTeamDisplay" class="campaign-default-display">No default team saved yet.</div>
+            <div id="campaignSlimeSelectionList" style="max-height:200px; overflow-y:auto; margin-bottom:8px;"></div>
+            <div id="campaignTeamSummary" style="font-size:11px; padding:8px; background:#0a2a1a; border-radius:8px; min-height:36px;"></div>
+            <div id="campaignSelectionCount" style="text-align:center; font-size:11px; color:#aaff99; margin-top:4px;"></div>
+        </div>
+        <div style="display:flex; gap:8px; margin-top:14px; flex-wrap:wrap;">
+            <button id="campaignEnterBtn" onclick="enterCampaignStage()" style="flex:1; min-width:140px; background:#1a4422; border-color:#ffdd77; font-size:13px;">⚔️ Enter Stage</button>
+            <button id="campaignSweepBtn" onclick="sweepCampaignStage()" style="flex:1; min-width:140px; display:none; background:#2a3355; border-color:#8899ff;">🌀 Sweep</button>
+            <button onclick="closeCampaignStageModal()" style="flex:1; min-width:100px; background:#552222; border-color:#ffaa66;">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- SUMMON REVEAL MODAL — header + scroll body + pinned footer (always escapable) -->
+<div id="summonModal" class="modal summon-modal" role="dialog" aria-modal="true" aria-labelledby="summonModalTitle">
+    <div class="summon-modal-backdrop" data-summon-close="1" aria-hidden="true"></div>
+    <div class="modal-content summon-modal-content">
+        <div class="summon-modal-rays" aria-hidden="true"></div>
+        <div class="summon-modal-sparkles" id="summonSparkles" aria-hidden="true"></div>
+        <div class="summon-modal-header">
+            <h2 class="summon-modal-title" id="summonModalTitle">✨ Summon Results</h2>
+            <button type="button" class="summon-close-x" data-summon-close="1" aria-label="Close">✕</button>
+        </div>
+        <div class="summon-results-scroll">
+            <div id="summonResults" class="slime-grid summon-results-grid"></div>
+        </div>
+        <div class="summon-modal-footer">
+            <button type="button" class="summon-continue-btn" data-summon-close="1">Continue</button>
+            <div class="summon-close-hint">Esc · tap outside · or Continue</div>
+        </div>
+    </div>
+</div>
+
+<div id="toast-container"></div>
+
+<!-- Floating rich tooltip (outside .game so never clipped) -->
+<div id="gameTooltip" class="game-tooltip" role="tooltip" hidden>
+    <div class="game-tooltip-title" id="gameTooltipTitle"></div>
+    <div class="game-tooltip-body" id="gameTooltipBody"></div>
+</div>
+
+<script src="js/data/constants.js"></script>
+<script src="js/data/traits.js"></script>
+<script src="js/state.js"></script>
+<script src="js/systems/slimes.js"></script>
+<script src="js/systems/progression.js"></script>
+<script src="js/systems/campaign.js"></script>
+<script src="js/systems/idleMarch.js"></script>
+<script src="js/systems/combat.js"></script>
+<script src="js/systems/alchemy.js"></script>
+<script src="js/systems/management.js"></script>
+<script src="js/systems/summon.js"></script>
+<script src="js/systems/artifacts.js"></script>
+<script src="js/systems/social.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
