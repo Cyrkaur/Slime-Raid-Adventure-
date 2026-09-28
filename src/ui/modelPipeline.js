@@ -198,7 +198,23 @@
    * - Loads real gel_*.glb + enemy_*.glb only (no missing prop/base 404 spam)
    * - Browser console.log + server-log breadcrumb (python -m http.server)
    */
+  /** Hero3d pilots (heroGel3d.js) load alongside the legacy GLB warm-up. */
   function preloadForUnits(units, opts) {
+    var core = preloadForUnitsCore(units, opts);
+    var H = global.SR_HERO3D;
+    if (!H || typeof H.preload !== 'function') return core;
+    var heroP = H.preload(units).catch(function (e) {
+      console.warn('[Models] hero3d preload error', e && e.message);
+      return null;
+    });
+    return Promise.all([core, heroP]).then(function (r) {
+      var res = r[0];
+      if (res && typeof res === 'object' && r[1]) res.hero3d = r[1];
+      return res;
+    });
+  }
+
+  function preloadForUnitsCore(units, opts) {
     opts = opts || {};
     var urls = [];
     var seen = Object.create(null);

@@ -8,6 +8,8 @@
 
   /** Set during create() so figure builders can respect quality tier */
   var _combatQuality = 'high';
+  var _combatRenderer = null; // for hero3d PMREM env map
+  var _combatShadows = false;
 
   var ELEMENT_HEX = {
     water: 0x4fc3f7, fire: 0xff7043, earth: 0xa1887f, wind: 0x80deea,
@@ -3404,6 +3406,24 @@
     // Full 3D GLB gels are V2 / opt-in only (sr_use_gel_glb=1 or SR_USE_GEL_GLB).
     // Hub GFX quality only scales lights/shadows/FX — not mesh vs sprite.
     // ═══════════════════════════════════════════════════════════════════
+    // Slime heroes 3D (pilots Water/Fire/Plant): skinned GLB + physical gel material.
+    // Default for pilot allies; returns null (→ sprite path below) if disabled or not loaded.
+    if (global.SR_HERO3D && typeof global.SR_HERO3D.makeFigure === 'function' &&
+        global.SR_HERO3D.isPilot(unit.element) && !unit.isFoe && !unit.isEnemy) {
+      try {
+        var hero = global.SR_HERO3D.makeFigure(THREE, unit, {
+          renderer: _combatRenderer, quality: _combatQuality || 'high',
+          shadows: _combatShadows, gelSize: gelSizeMult(unit)
+        });
+        if (hero) {
+          console.log('[Battle3D] hero3d', unit.element, unit.rarity || '');
+          return hero;
+        }
+      } catch (eH) {
+        console.warn('[Battle3D] hero3d failed → sprite', unit.element, eH && eH.message);
+      }
+    }
+
     var forceGlbOnly = !!global.SR_USE_GEL_GLB;
     if (!forceGlbOnly) {
       try {
@@ -3573,6 +3593,7 @@
     });
     var quality = Q.id;
     _combatQuality = quality;
+    _combatRenderer = renderer;
     console.log('[Battle3D] quality', Q.id);
 
     try {
@@ -3603,6 +3624,7 @@
       renderer.toneMappingExposure = Q.exposure;
     }
     renderer.shadowMap.enabled = !!Q.shadows;
+    _combatShadows = !!Q.shadows;
     if (THREE.PCFSoftShadowMap) renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     var scene = new THREE.Scene();
@@ -4956,9 +4978,57 @@
      * Melt death: gel body loses structure, collapses into liquid, puddle remains.
      * Hard-realm foes use solidDeath instead.
      */
+    /** Hero3d faint: baked 'faint' clip melts the body, then puddle stays. */
+    function heroFaint(unitId, fig) {
+      if (Q.worldFx && fig.home) {
+        spawnElementResidual({ x: fig.home.x, y: 0.1, z: fig.home.z }, fig.element || 'Water', 'kill');
+      }
+      fig.melting = true;
+      fig.meltT = 0;
+      fig.activePulse = 0;
+      if (fig.playClip) fig.playClip('faint', 0.08);
+      makePuddle(fig);
+      var splashed = false;
+      anims.push({
+        t: 0,
+        dur: 1.6,
+        tag: 'heroFaint',
+        unitId: unitId,
+        update: function (u) {
+          fig.meltT = u;
+          if (u > 0.72) {
+            var k = (u - 0.72) / 0.28;
+            fig.root.scale.set(fig.baseScale * (1 + k * 0.25), fig.baseScale * (1 - k * 0.97), fig.baseScale * (1 + k * 0.25));
+          }
+          if (!splashed && u >= 0.45) { splashed = true; spawnDroplets(fig, 12); }
+          if (fig.contactShadow) {
+            var cs = 1 + u * 1.2;
+            fig.contactShadow.scale.set(cs, cs, 1);
+          }
+          if (fig.puddle) {
+            var pr = 0.2 + u * u * 1.5;
+            fig.puddle.scale.set(pr, pr, 1);
+            fig.puddle.material.opacity = Math.min(0.8, u * 1.1);
+          }
+        },
+        done: function () {
+          fig.melting = false;
+          fig.dead = true;
+          if (fig.model) fig.model.visible = false;
+          if (fig.contactShadow) fig.contactShadow.visible = false;
+          fig.root.scale.setScalar(fig.baseScale);
+          if (fig.puddle) {
+            fig.puddle.scale.set(1.7, 1.7, 1);
+            fig.puddle.material.opacity = 0.72;
+          }
+        }
+      });
+    }
+
     function meltDeath(unitId) {
       var fig = figures[unitId];
       if (!fig || fig.melting || fig.dead) return;
+      if (fig.isHero3d) { heroFaint(unitId, fig); return; }
       if (fig.solidEnemy) {
         solidDeath(unitId);
         // Phase C: hard foes still get element residual punctuation
@@ -5158,6 +5228,13 @@
         return;
       }
       // Revive (rare)
+      if (fig.isHero3d) {
+        if (fig.heroRevive) fig.heroRevive();
+        fig.root.scale.setScalar(fig.baseScale);
+        fig.root.position.set(fig.home.x, fig.home.y, fig.home.z);
+        if (fig.puddle) fig.puddle.visible = false;
+        return;
+      }
       fig.dead = false;
       fig.melting = false;
       fig.shell.visible = true;
@@ -5336,6 +5413,7 @@
       var fig = figures[unitId];
       var target = towardId != null ? figures[towardId] : null;
       if (!fig || fig.dead || fig.melting) return;
+      if (fig.playClip) fig.playClip('attack', 0.06);
       // Lunge across the lane toward the enemy line
       // Bounce = actualize. Pose may already be held from cast start (poseOwned).
       var across = fig.isFoe ? -1 : 1;
@@ -5460,6 +5538,7 @@
     function hitFlash(unitId, crit) {
       var fig = figures[unitId];
       if (!fig || fig.dead || fig.melting) return;
+      if (fig.playClip) fig.playClip('hit', 0.04);
       fig.hitFlash = crit ? 1 : 0.7;
       var baseX = fig.home.x;
       anims.push({
@@ -5789,6 +5868,7 @@
      * Goal: you can see WHO is casting before the projectile leaves.
      */
     function castWindup(fromFig, col, thenFn, castProfile, castSec) {
+      if (fromFig && fromFig.playClip && !fromFig.dead && !fromFig.melting) fromFig.playClip('cast', 0.08);
       if (!fromFig || !Q.worldFx) {
         if (thenFn) thenFn();
         return;
@@ -7931,6 +8011,7 @@
       var fi;
       for (fi = 0; fi < ids.length; fi++) {
         var fig = figures[ids[fi]];
+        if (fig.heroTick) fig.heroTick(dt);
         if (fig.dead || fig.melting) continue;
         if ((fi + Math.floor(clock * 18)) % 2 === 0) {
           applyWobble(fig, clock + fig.phase);
@@ -8128,8 +8209,9 @@
       Object.keys(figures).forEach(function (id) {
         var fig = figures[id];
         scene.remove(fig.root);
+        if (fig.heroDispose) fig.heroDispose();
         if (fig.geo) fig.geo.dispose();
-        if (fig.mat) fig.mat.dispose();
+        if (fig.mat && !fig.isHero3d) fig.mat.dispose();
         if (fig.puddle) {
           scene.remove(fig.puddle);
           if (fig.puddle.geometry) fig.puddle.geometry.dispose();

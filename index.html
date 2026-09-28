@@ -109,10 +109,14 @@
     "imports": {
       "three": "./vendor/three.module.js",
       "three/addons/": "./vendor/three-addons/"
+    },
+    "scopes": {
+      "./vendor/three-addons-g/": { "three": "./vendor/three-global.js" }
     }
   }
   </script>
   <script type="module" src="src/ui/gltfBridge.js?v=4"></script>
+  <script type="module" src="src/ui/heroGel3d.js?v=9"></script>
 
   <!-- Ported pure systems (window globals for browser + Node tests) -->
   <script src="src/data/campaignWorld.js?v=2"></script>
@@ -124,9 +128,9 @@
   <script src="src/systems/gameState.js?v=24"></script>
   <script src="src/ui/slime3d.js?v=5"></script>
   <script src="src/ui/artPipeline.js?v=38"></script>
-  <script src="src/ui/modelPipeline.js?v=8"></script>
+  <script src="src/ui/modelPipeline.js?v=9"></script>
   <script src="src/ui/combatVfxCatalog.js?v=7"></script>
-  <script src="src/ui/battleWorld3d.js?v=102"></script>
+  <script src="src/ui/battleWorld3d.js?v=103"></script>
   <script src="src/ui/championShowcase3d.js?v=4"></script>
   <script src="src/ui/audioBus.js?v=1"></script>
   <script src="src/ui/sceneChrome.js?v=31"></script>
