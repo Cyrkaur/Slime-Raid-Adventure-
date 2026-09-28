@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Raid of the Gel — Phaser</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
+  <style>
+    /* Full viewport so Phaser Scale.FIT can grow to any monitor (1080 / 2K / 4K) */
+    html, body {
+      margin: 0; padding: 0;
+      width: 100%;
+      height: 100%;
+      height: 100dvh;
+      background: #010c08;
+      overflow: hidden;
+      font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    #game-container {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      height: 100dvh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #010c08;
+    }
+    /* Live Three.js arena sits under the Phaser HUD canvas during combat */
+    #battle-3d-host {
+      display: none;
+      position: absolute;
+      left: 0; top: 0;
+      width: 0; height: 0;
+      z-index: 0;
+      pointer-events: none;
+      overflow: hidden;
+      border-radius: 2px;
+      box-shadow: 0 0 40px rgba(0, 0, 0, 0.55);
+    }
+    #battle-3d-host canvas {
+      display: block;
+      width: 100% !important;
+      height: 100% !important;
+    }
+    /* Dual DOM video host — under canvas; seamless dissolve at loop seam */
+    #sr-bg-video-host,
+    #sr-bg-video {
+      position: absolute;
+      z-index: 0;
+      pointer-events: none;
+      overflow: hidden;
+      background: #02140c;
+    }
+    #sr-bg-video-host video,
+    #sr-bg-video {
+      object-fit: cover;
+    }
+    /* Phaser canvas on top — transparent so DOM video / 3D arena show through */
+    #game-container > canvas {
+      position: relative;
+      z-index: 1;
+      display: block;
+      margin: 0 auto;
+      image-rendering: auto;
+      -webkit-font-smoothing: antialiased;
+      box-shadow: 0 0 40px rgba(0, 0, 0, 0.55);
+    }
+    #boot-msg {
+      position: fixed; left: 12px; bottom: 8px;
+      color: #446655; font-size: 11px; pointer-events: none;
+      z-index: 20;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <div id="battle-3d-host" aria-hidden="true"></div>
+  </div>
+  <div id="boot-msg">Raid of the Gel · Phaser 3 · open /index.html · hard-refresh if combat looks 2D</div>
+
+  <!-- Phaser 3 + Three.js: local vendor (offline). Sync CDN fallback if vendor missing. -->
+  <script src="vendor/phaser.min.js"></script>
+  <script>
+    if (typeof Phaser === 'undefined') {
+      document.write('<script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"><\/script>');
+      window.__SR_PHASER_SRC = 'cdn';
+    } else {
+      window.__SR_PHASER_SRC = 'vendor';
+    }
+  </script>
+  <script src="vendor/three.min.js"></script>
+  <script>
+    if (typeof THREE === 'undefined') {
+      document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"><\/script>');
+      window.__SR_THREE_SRC = 'cdn';
+    } else {
+      window.__SR_THREE_SRC = 'vendor';
+    }
+  </script>
+
+  <!-- Phase 5: GLTFLoader bridge — local three modules (offline) -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "./vendor/three.module.js",
+      "three/addons/": "./vendor/three-addons/"
+    }
+  }
+  </script>
+  <script type="module" src="src/ui/gltfBridge.js?v=4"></script>
+
+  <!-- Ported pure systems (window globals for browser + Node tests) -->
+  <script src="src/data/campaignWorld.js?v=2"></script>
+  <script src="src/data/championNames.js?v=1"></script>
+  <script src="src/data/storyLore.js?v=1"></script>
+  <script src="src/data/gameData.js?v=28"></script>
+  <script src="src/data/worldSize.js?v=4"></script>
+  <script src="src/systems/combat.js?v=11"></script>
+  <script src="src/systems/gameState.js?v=24"></script>
+  <script src="src/ui/slime3d.js?v=5"></script>
+  <script src="src/ui/artPipeline.js?v=38"></script>
+  <script src="src/ui/modelPipeline.js?v=8"></script>
+  <script src="src/ui/combatVfxCatalog.js?v=7"></script>
+  <script src="src/ui/battleWorld3d.js?v=102"></script>
+  <script src="src/ui/championShowcase3d.js?v=4"></script>
+  <script src="src/ui/audioBus.js?v=1"></script>
+  <script src="src/ui/sceneChrome.js?v=31"></script>
+  <script src="src/ui/modeVideoBg.js?v=10"></script>
+  <script src="src/ui/sceneTransit.js?v=3"></script>
+  <script src="src/ui/gearEnhanceUI.js?v=4"></script>
+  <script src="src/ui/tutorialCoach.js?v=5"></script>
+
+  <!-- Scenes — all HTML hub modes -->
+  <script src="src/scenes/BootScene.js?v=31"></script>
+  <script src="src/scenes/IntroScene.js?v=3"></script>
+  <script src="src/scenes/TutorialPickScene.js?v=1"></script>
+  <script src="src/scenes/HubScene.js?v=29"></script>
+  <script src="src/scenes/PreBattleScene.js?v=13"></script>
+  <script src="src/scenes/BattleScene.js?v=50"></script>
+  <script src="src/scenes/RosterScene.js?v=13"></script>
+  <script src="src/scenes/ChampionDetailScene.js?v=28"></script>
+  <script src="src/scenes/CampaignScene.js?v=20"></script>
+  <script src="src/scenes/SummonScene.js?v=13"></script>
+  <script src="src/scenes/DungeonScene.js?v=13"></script>
+  <script src="src/scenes/VaultScene.js?v=8"></script>
+  <script src="src/scenes/GreatHallScene.js?v=4"></script>
+  <script src="src/scenes/AlchemyScene.js?v=4"></script>
+  <script src="src/scenes/WorkshopScene.js?v=5"></script>
+  <script src="src/scenes/MarketScene.js?v=4"></script>
+  <script src="src/scenes/EternityScene.js?v=3"></script>
+  <script src="src/scenes/ChronicleScene.js?v=5"></script>
+
+  <script src="src/main.js?v=4"></script>
+</body>
+</html>

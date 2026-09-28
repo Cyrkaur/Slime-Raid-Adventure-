@@ -1,0 +1,23 @@
+Raid of the Gel — painted combat FX pack (bang-for-buck wave 1)
+Black studio keyed to alpha PNG. Runtime: battleWorld3d.spawnPaintedFx (THREE.Sprite,
+additive for fire/lightning/heal/ward). Wired into blaze/inferno/splash/venom/ice/bolt/mend/shield.
+
+| stem | use |
+|------|-----|
+| fire_impact | Fire/lava hits, Inferno booms |
+| fire_comet | Blaze / fire projectile travel |
+| heal_bloom | Mend / heal skills |
+| buff_ward | Guard / shell / veil shields |
+| poison_cloud | Poison / miasma impacts |
+| ice_shatter | Ice / crystal / freeze impacts |
+| water_splash | Splash / tidal / water hits |
+| lightning_bolt | Bolt / storm / lightning hits |
+
+  fire_impact.png  <=  260.jpg
+  poison_cloud.png  <=  253.jpg
+  buff_ward.png  <=  254.jpg
+  water_splash.png  <=  255.jpg
+  heal_bloom.png  <=  256.jpg
+  fire_comet.png  <=  257.jpg
+  lightning_bolt.png  <=  258.jpg
+  ice_shatter.png  <=  259.jpg

@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.tmp/
+Play Raid of the Gel.app/
+._*
+*.bak*
+assets/video-archive/
+.DS_Store

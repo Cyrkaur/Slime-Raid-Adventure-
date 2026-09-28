@@ -1,0 +1,124 @@
+{
+  "name": "slime-raid-phaser",
+  "productName": "Raid of the Gel",
+  "version": "1.0.0",
+  "description": "Raid of the Gel — single-player Raid-like gel collector (Phaser + Three)",
+  "author": "Raid of the Gel",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "python3 -m http.server 8090 --bind 127.0.0.1",
+    "serve": "python3 -m http.server 8090 --bind 127.0.0.1",
+    "open": "python3 -m http.server 8090 --bind 127.0.0.1",
+    "desktop": "electron .",
+    "desktop:dev": "electron . --enable-logging",
+    "launchers": "bash scripts/make-launchers.sh",
+    "dist": "electron-builder --dir",
+    "dist:mac": "electron-builder --mac dir",
+    "dist:win": "electron-builder --win portable --x64",
+    "dist:all": "electron-builder --mac dir --win portable --x64",
+    "pack:mac": "npm run dist:mac && node scripts/pack-customer-zips.js",
+    "pack:win": "npm run dist:win && node scripts/pack-customer-zips.js",
+    "pack:friend": "npm run pack:mac",
+    "pack:customers": "npm run dist:all && node scripts/pack-customer-zips.js",
+    "release:mac": "npm test && npm run pack:mac && npm run launchers",
+    "release:all": "npm test && npm run pack:customers && npm run launchers",
+    "test": "node tests/combat-unit.test.js && node tests/systems-port.test.js && node tests/feature-parity.test.js && node tests/gacha-loop.test.js && node tests/arena-depth.test.js && node tests/art-parity.test.js && node tests/hybrid-rsl.test.js && node tests/phaser-boot.test.js && node tests/phaser-live-boot.test.js",
+    "test:hybrid": "node tests/hybrid-rsl.test.js",
+    "test:combat": "node tests/combat-unit.test.js",
+    "test:systems": "node tests/systems-port.test.js",
+    "test:parity": "node tests/feature-parity.test.js",
+    "test:arena": "node tests/arena-depth.test.js",
+    "test:art": "node tests/art-parity.test.js",
+    "test:boot": "node tests/phaser-boot.test.js",
+    "test:live": "node tests/phaser-live-boot.test.js",
+    "models:placeholder": "node scripts/make-placeholder-glbs.js",
+    "models:blender": "/Applications/Blender.app/Contents/MacOS/Blender --background --python scripts/blender_export_all_gels.py"
+  },
+  "keywords": [
+    "phaser",
+    "slime",
+    "raid",
+    "collector",
+    "desktop"
+  ],
+  "license": "MIT",
+  "build": {
+    "appId": "com.softenedrealms.raidgel",
+    "productName": "Raid of the Gel",
+    "copyright": "Copyright © Softened Realms",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "index.html",
+      "electron/**/*",
+      "src/**/*",
+      "assets/**/*",
+      "vendor/**/*",
+      "build/icons/**/*",
+      "package.json",
+      "!**/*.bak",
+      "!**/*.bak_*",
+      "!assets/video-archive/**/*",
+      "!**/*.{map,md}",
+      "!tests/**/*",
+      "!docs/**/*",
+      "!scripts/**/*",
+      "!node_modules/**/{test,tests,docs,example,examples}/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "build/icons",
+        "to": "icons",
+        "filter": [
+          "icon.png",
+          "icon.icns",
+          "icon.ico"
+        ]
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.games",
+      "icon": "build/icons/icon.icns",
+      "target": [
+        {
+          "target": "dir",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ],
+      "identity": null,
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false
+    },
+    "win": {
+      "icon": "build/icons/icon.ico",
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "linux": {
+      "icon": "build/icons",
+      "category": "Game",
+      "target": [
+        "AppImage"
+      ]
+    },
+    "asar": true,
+    "asarUnpack": [
+      "assets/**/*.mp4"
+    ]
+  },
+  "devDependencies": {
+    "electron": "^43.2.0",
+    "electron-builder": "^26.15.3",
+    "serve": "^14.2.4"
+  }
+}
