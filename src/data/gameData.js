@@ -678,19 +678,6 @@
     Void: { title: 'Abyss', role: 'Specialist', affinity: 'Unmakes Light, Shadow, Spirit', personality: 'Distant, hungry', signature: 'Venom / Collapse', blurb: 'Rare null-gel that eats patterns other elements rely on.', extended: 'Abyss cores surface only near Eternity rifts and Void Tower floors.' }
   };
 
-  // Lineage names: founder decision pending. HERO_ROSTER_CONFIG.lineageNames
-  // 'codex' uses the Slime Adventure titles (Emberheart, Stonegut, Zephyrkin...);
-  // 'phaser' keeps the titles above. The older Phaser title stays on titlePhaser.
-  (function applyLineageNames() {
-    if (!HR || !HR.CODEX_LINEAGES) return;
-    var mode = (HR.HERO_ROSTER_CONFIG && HR.HERO_ROSTER_CONFIG.lineageNames) || 'codex';
-    Object.keys(ELEMENT_LORE).forEach(function (k) {
-      var e = ELEMENT_LORE[k];
-      e.titlePhaser = e.title;
-      if (mode === 'codex' && HR.CODEX_LINEAGES[k]) e.title = HR.CODEX_LINEAGES[k].title;
-    });
-  })();
-
   /**
    * Fixed star count by rarity (does not change when you evolve).
    * Evolution turns stars purple (awakened) — max purples = base stars.

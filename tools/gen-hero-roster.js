@@ -9,6 +9,7 @@ const ctx = { window: {}, console: { log() {} }, document: {} };
 vm.createContext(ctx);
 vm.runInContext(loreSrc.replace(/^const /gm, 'var '), ctx);
 const W = ctx.window;
+const LN = require('./lineage-names.js'); // codex -> Phaser lineage names (founder pick)
 const ELS = ['Water','Fire','Earth','Wind','Plant','Lightning','Ice','Shadow','Light','Metal','Poison','Crystal','Lava','Storm','Spirit','Void'];
 const clean = s => s.replace(/\*\*/g,'').replace(/^\*|\*$/g,'').trim();
 const slug = s => s.toLowerCase().replace(/^the /,'').replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');
@@ -50,7 +51,7 @@ function legendTable(a, b, tier, body, src) {
     if (L.name !== r[1]) console.error('NAME MISMATCH', el, L.name, '|', r[1]);
     out[el] = {
       id: slug(el) + '_' + tier + '_' + slug(L.name).split('_').filter(w => !['of','the','that','had','a'].includes(w)).slice(0, 2).join('_'),
-      name: L.name, title: L.title, epithet: L.epithet, bio: L.bio,
+      name: L.name, title: LN.apply(L.title), epithet: LN.apply(L.epithet), bio: LN.apply(L.bio),
       role: null, signature: sig(r[7]),
       look: { body, hook: r[3], ornaments: r[4], eyes: r[5], idle: r[6] }
     };
@@ -63,48 +64,34 @@ const roster = {};
 ELS.forEach(el => {
   const lore = W.ELEMENT_LORE[el];
   if (!species[el] || !epics[el] || !legs[el] || !myths[el]) throw new Error('missing ' + el);
-  if (species[el].lineage !== lore.title) console.error('LINEAGE MISMATCH', el, species[el].lineage, lore.title);
-  // epic role: element role from codex lore unless the doc gives one
+  if (species[el].lineage !== LN.apply(lore.title)) throw new Error('LINEAGE MISMATCH ' + el + ' ' + species[el].lineage + ' vs ' + LN.apply(lore.title));
   roster[el] = { species: species[el], epic: epics[el], legendary: legs[el], mythic: myths[el] };
 });
-// Codex lineage names + blurbs (so the Phaser ELEMENT_LORE can switch)
-const lineages = {};
-ELS.forEach(el => { const l = W.ELEMENT_LORE[el]; lineages[el] = { title: l.title, role: l.role, blurb: l.blurb, personality: l.personality, extended: l.extended }; });
 const ids = new Set();
 ELS.forEach(el => ['epic','legendary','mythic'].forEach(t => { const id = roster[el][t].id; if (ids.has(id)) throw new Error('dup id ' + id); ids.add(id); }));
 const J = o => JSON.stringify(o, null, 2).replace(/\n/g, '\n  ');
 const out = `/* ===== Hero roster: species lineages + named Epic / Legendary / Mythic heroes =====
  * GENERATED from docs/HERO_ROSTER.md and Slime Adventure js/data/lore.js
- * (LEGENDARY_LEGENDS / MYTHIC_LEGENDS / ELEMENT_LORE copied verbatim).
+ * (LEGENDARY_LEGENDS / MYTHIC_LEGENDS text copied, lineage names retitled to the
+ * Phaser set via tools/lineage-names.js, e.g. 'Legendary Emberkin').
  * Regenerate with tools/gen-hero-roster.js rather than hand-editing the data blocks.
  *
  * Common / Uncommon / Rare  = species: lineage + variant a/b/c + generated name.
  * Epic / Legendary / Mythic = one named hero per element (see getNamedHero).
  *
- * Founder decisions still open. Defaults live in HERO_ROSTER_CONFIG so they are
- * one-line changes:
- *   - lineageNames: 'codex' (Emberheart, Stonegut, Zephyrkin...) or 'phaser'
- *     (the older Phaser titles: Emberkin, Stoneward, Zephyr...).
- *   - duplicate named pulls: onDuplicateNamedHero() is the only hook.
- *     Placeholder policy converts the duplicate to shards; the shard values are
- *     untuned placeholders (0) until the founder sets them.
+ * Lineage names: the Phaser ELEMENT_LORE titles (Emberkin, Stoneward, Zephyr...),
+ * founder decision 2026-09-28.
+ * Duplicate named pulls: undecided. onDuplicateNamedHero() is the single hook
+ * and is a no-op stub for now (the copy joins the roster like any unit).
  */
 (function (global) {
   'use strict';
 
   var HERO_ROSTER_CONFIG = {
-    lineageNames: 'codex',
-    namedRarities: ['Epic', 'Legendary', 'Mythic'],
-    duplicatePolicy: 'shards',
-    /** Placeholder, NOT tuned. Founder to set real values. */
-    duplicateShardValue: { Epic: 0, Legendary: 0, Mythic: 0 },
-    duplicateShardCurrency: 'slimeShards'
+    namedRarities: ['Epic', 'Legendary', 'Mythic']
   };
 
   var ELEMENT_ORDER = ${JSON.stringify(ELS)};
-
-  /** Codex lineage titles and blurbs (Slime Adventure ELEMENT_LORE). */
-  var CODEX_LINEAGES = ${J(lineages)};
 
   var HERO_ROSTER = ${J(roster)};
 
@@ -160,24 +147,18 @@ const out = `/* ===== Hero roster: species lineages + named Epic / Legendary / M
   /**
    * The one hook for duplicate named pulls. Called by performSummon when a pull
    * resolves to a named hero the player already owns.
-   * Returns { keep: boolean, converted: {currency, amount} | null }.
-   * Placeholder policy 'shards': do not add the copy; grant duplicateShardValue
-   * (untuned, 0 by default) and count the dupe on the owned unit.
+   * Returns { keep: boolean }. keep:false would drop the copy from the roster.
+   *
+   * TODO(founder): duplicate policy is undecided (rank-up, bond, or shards).
+   * No-op stub: no conversion, no numbers; the copy is kept as a normal unit.
    */
-  function onDuplicateNamedHero(state, pulled, owned) {
-    var cfg = HERO_ROSTER_CONFIG;
-    if (cfg.duplicatePolicy === 'keep') return { keep: true, converted: null };
-    var amount = (cfg.duplicateShardValue && cfg.duplicateShardValue[pulled.rarity]) || 0;
-    var cur = cfg.duplicateShardCurrency;
-    if (state && state.resources && amount) state.resources[cur] = (state.resources[cur] || 0) + amount;
-    if (owned) owned.namedDupes = (owned.namedDupes || 0) + 1;
-    return { keep: false, converted: { currency: cur, amount: amount } };
+  function onDuplicateNamedHero(state, pulled, owned) { // eslint-disable-line no-unused-vars
+    return { keep: true };
   }
 
   var API = {
     HERO_ROSTER_CONFIG: HERO_ROSTER_CONFIG,
     HERO_ROSTER: HERO_ROSTER,
-    CODEX_LINEAGES: CODEX_LINEAGES,
     ELEMENT_ORDER: ELEMENT_ORDER,
     getNamedHero: getNamedHero,
     getHeroById: getHeroById,

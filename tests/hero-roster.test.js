@@ -28,10 +28,12 @@ D.ELEMENTS.forEach((el) => ['a', 'b', 'c'].forEach((v) => assert(HR.getSpeciesVa
 assert(HR.getNamedHero('Water', 'Legendary').name === 'Maris of the Last Rain', 'Maris');
 assert(HR.getNamedHero('Void', 'Mythic').name === 'The Exception', 'Exception');
 
-// Lineage default = codex names
-assert(HR.HERO_ROSTER_CONFIG.lineageNames === 'codex', 'codex default');
-assert(D.ELEMENT_LORE.Fire.title === 'Emberheart' && D.ELEMENT_LORE.Earth.title === 'Stonegut', 'codex lineage titles');
-assert(D.ELEMENT_LORE.Fire.titlePhaser === 'Emberkin', 'phaser title kept');
+// Lineage names = Phaser set, legends retitled to match
+assert(D.ELEMENT_LORE.Fire.title === 'Emberkin' && D.ELEMENT_LORE.Earth.title === 'Stoneward', 'phaser lineage titles');
+D.ELEMENTS.forEach((el) => assert(HR.getLineage(el).lineage === D.ELEMENT_LORE[el].title, 'lineage matches ELEMENT_LORE ' + el));
+assert(HR.getNamedHero('Fire', 'Legendary').title === 'Legendary Emberkin', 'legend retitled');
+const codex = /\b(Emberheart|Stonegut|Zephyrkin|Bloomcore|Sparkcoil|Frostlens|Umbrawisp|Luminjelly|Chromeblob|Venomgloop|Prismheart|Magmacore|Tempestorb|Wispling|Riftgel)/;
+HR.listNamedHeroes().forEach((h) => assert(!codex.test(JSON.stringify(h)), 'no codex lineage names ' + h.id));
 
 // Name bank no longer collides with legend names
 assert(CN.ELEMENT_NAMES.Fire.indexOf('Ashen') < 0 && CN.ELEMENT_NAMES.Plant.indexOf('Briar') < 0, 'Ashen/Briar dropped');
@@ -61,8 +63,7 @@ a = S.performSummon(st, 'ancient', 1);
 Math.random = origRandom;
 const dup = a.results[0];
 assert(dup.heroId === first.heroId && dup.duplicateOf === first.id, 'duplicate flagged');
-assert(st.roster.length === before, 'duplicate not added (placeholder: convert to shards)');
-assert(first.namedDupes === 1, 'dupe counted on owned unit');
-assert(dup.convertedTo && dup.convertedTo.amount === 0, 'untuned shard value is 0');
+assert(st.roster.length === before + 1, 'no-op duplicate stub keeps the copy');
+assert(typeof HR.onDuplicateNamedHero === 'function', 'duplicate hook exists');
 
 console.log('PASS hero-roster (' + n + ' checks)');

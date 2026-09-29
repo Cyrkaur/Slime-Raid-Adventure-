@@ -2,7 +2,7 @@
 
 Companion to `HERO_DESIGN.md`. This expands the founder's roster thesis into buildable designs: Common to Rare = **species** (one lineage look per element, 3 body variants). Epic and up = **named champions** with their own look and signature skill. Last updated 2026-09-28.
 
-Sources: `Slime Adventure/js/data/lore.js` (`ELEMENT_LORE`, `RARITY_LORE`, `LEGENDARY_LEGENDS`, `MYTHIC_LEGENDS`, `REGION_LORE`, `BOSS_LORE`), `Slime Adventure/WORLD_AND_CHAMPIONS.md`, `Slime-Raid-Phaser/src/data/gameData.js` (`resolveFormTier`, `RARITY_LORE`), `HERO_DESIGN.md` §4 (gel properties), §5 (eyes), §8 (roster plan). Legendary and Mythic names, epithets, and bios are existing canon. The 16 Epic champions are new in this doc.
+Sources: `Slime Adventure/js/data/lore.js` (`ELEMENT_LORE`, `RARITY_LORE`, `LEGENDARY_LEGENDS`, `MYTHIC_LEGENDS`, `REGION_LORE`, `BOSS_LORE`), `Slime Adventure/WORLD_AND_CHAMPIONS.md`, `Slime-Raid-Phaser/src/data/gameData.js` (`resolveFormTier`, `RARITY_LORE`), `HERO_DESIGN.md` §4 (gel properties), §5 (eyes), §8 (roster plan). Legendary and Mythic names, epithets, and bios are existing canon, with lineage names retitled to the Phaser set (§7 issue 1). The 16 Epic champions are new in this doc.
 
 Terms: **silhouette hook** = the one shape that makes the hero readable as a black silhouette at fight size. Every hero keeps its element's gel material (HERO_DESIGN §4) and follows the eye rules (§5). No stats in this doc.
 
@@ -12,7 +12,7 @@ Terms: **silhouette hook** = the one shape that makes the hero readable as a bla
 
 | Tier | Rarity | Count | Identity | 3D body | Built by |
 |---|---|---|---|---|---|
-| Species | Common, Uncommon, Rare | 16 lineages × 3 variants = 48 looks | Lineage (Tideborn, Emberheart, ...), generated names | Blob (Common/Uncommon), Morph (some Rare, evo 2+) | Kit system: element kit + variant preset |
+| Species | Common, Uncommon, Rare | 16 lineages × 3 variants = 48 looks | Lineage (Tideborn, Emberkin, ...), generated names | Blob (Common/Uncommon), Morph (some Rare, evo 2+) | Kit system: element kit + variant preset |
 | Epic champions | Epic | 16 (1 per element), **new** | Named, own bio and signature skill | **Morph** (Ascended at evo 3+, see §7) | Element kit + hero ornament set + hook deform + eye override, hand polish |
 | Legendary legends | Legendary | 16 (1 per element), existing | Named legends of the Second/Third Age | **Ascended** (Humanoid at evo 5+, see §7) | Same, heavier hand authoring |
 | Mythic legends | Mythic | 16 (1 per element), existing | Once-per-era, Shape-Bound | **Humanoid** (Shape-Bound) | Bespoke on the humanoid base, kit material |
@@ -28,21 +28,21 @@ Variants share the lineage's material and motion. They differ in body proportion
 | Element (lineage) | a | b | c |
 |---|---|---|---|
 | Water (Tideborn) | Classic teardrop, a curl of wave on top that sloshes when it hops | Wide puddle-low body with a floating lily-pad cap and one trapped air bubble | Tall narrow droplet with a rain-streak surface and a tiny fish shadow swimming inside |
-| Fire (Emberheart) | Round body with a three-lick flame tuft and a visible coal core | Squat body, flame crest swept back like a mohawk, ember sparks shed on landing | Pear-shaped, flame burns low around the base like a skirt, coal core pulses bright |
-| Earth (Stonegut) | Dense dome with pebbles suspended in bands and a flat slate chip on top | Lumpy boulder shape with a moss patch and a sprouting grass tuft | Wide-bottomed, clay-cloudy gel with a flat slab of stone half-sunk into one side like a shield |
-| Wind (Zephyrkin) | Near-clear teardrop tilted forward, white streaks swirling inside | Small hovering puff with two feather-shaped gel flicks at the sides | Spiral-twisted body like a soft-serve curl, the tip always trailing in a breeze |
-| Plant (Bloomcore) | Round green body with a single sprout and two leaves on top | Mossy low mound with three tiny flowers and leaves suspended inside | Bulb shape like a flower bud, petals folded at the crown that open on cast |
-| Lightning (Sparkcoil) | Pale yellow drop with a zigzag antenna and inner arcs | Round body with two static-charged hair spikes that stand up and twitch | Coiled body like a spring, arcs jumping between the coils |
-| Ice (Frostlens) | Semi-frozen dome with a frost rim and one icicle point on top | Faceted-edged cube-ish body, softened corners, snowflake frozen in the core | Low wide body with an ice crust "shell" cracked on the back, cloudy core |
-| Shadow (Umbrawisp) | Dark teardrop with smoky edges that trail on movement | Low slinking body with two pointed ear-wisps of smoke | Hooded-drop shape where the top folds over the eyes like a cowl |
-| Light (Luminjelly) | Bright round body with a glowing core and iridescent film | Floating drop with a small ring of light hovering above | Star-shaped soft body (five rounded points), core glowing from center |
-| Metal (Chromeblob) | Mercury dome with a mirror finish and a rivet-bead on top | Heavy low body with a gear-tooth ridge along the back | Bell-shaped body that rings when it lands, flat polished base |
-| Poison (Venomgloop) | Murky dome with rising bubbles and a drip at the base | Lopsided body with a mushroom cap of gel and spore motes | Tall bubbling blob with a sickly glow and a pop-bubble on top every few beats |
-| Crystal (Prismheart) | Clear body with one large facet crystal inside refracting color | Clear body with a crystal cluster growing out of the top | Round body with a ring of small crystals suspended like a belt |
-| Lava (Magmacore) | Glowing core with dark crust patches, sagging viscously | Crust-heavy dome with glowing cracks and one smoke vent on top | Low spread body with a molten drip lip, cooled glass pebbles at the base |
-| Storm (Tempestorb) | Dark blue-grey orb with a swirling cloud inside | Orb with a tiny lightning cloud floating above like a hat | Squashed body with a rain-streak skirt that drips upward then falls |
-| Spirit (Wispling) | Ghostly drop fading to transparent at the edges, slow bob | Taller wisp with a flame-like trailing tail instead of a base | Round body with two faint arm-wisps and a soft inner glow |
-| Void (Riftgel) | Near-black drop with a starfield inside | Irregular body whose outline slowly shifts between rounded shapes | Drop with a small dark ring orbiting it and a starfield swirl |
+| Fire (Emberkin) | Round body with a three-lick flame tuft and a visible coal core | Squat body, flame crest swept back like a mohawk, ember sparks shed on landing | Pear-shaped, flame burns low around the base like a skirt, coal core pulses bright |
+| Earth (Stoneward) | Dense dome with pebbles suspended in bands and a flat slate chip on top | Lumpy boulder shape with a moss patch and a sprouting grass tuft | Wide-bottomed, clay-cloudy gel with a flat slab of stone half-sunk into one side like a shield |
+| Wind (Zephyr) | Near-clear teardrop tilted forward, white streaks swirling inside | Small hovering puff with two feather-shaped gel flicks at the sides | Spiral-twisted body like a soft-serve curl, the tip always trailing in a breeze |
+| Plant (Bloomkin) | Round green body with a single sprout and two leaves on top | Mossy low mound with three tiny flowers and leaves suspended inside | Bulb shape like a flower bud, petals folded at the crown that open on cast |
+| Lightning (Stormcore) | Pale yellow drop with a zigzag antenna and inner arcs | Round body with two static-charged hair spikes that stand up and twitch | Coiled body like a spring, arcs jumping between the coils |
+| Ice (Frostgel) | Semi-frozen dome with a frost rim and one icicle point on top | Faceted-edged cube-ish body, softened corners, snowflake frozen in the core | Low wide body with an ice crust "shell" cracked on the back, cloudy core |
+| Shadow (Shade) | Dark teardrop with smoky edges that trail on movement | Low slinking body with two pointed ear-wisps of smoke | Hooded-drop shape where the top folds over the eyes like a cowl |
+| Light (Lumina) | Bright round body with a glowing core and iridescent film | Floating drop with a small ring of light hovering above | Star-shaped soft body (five rounded points), core glowing from center |
+| Metal (Steelgel) | Mercury dome with a mirror finish and a rivet-bead on top | Heavy low body with a gear-tooth ridge along the back | Bell-shaped body that rings when it lands, flat polished base |
+| Poison (Venomkin) | Murky dome with rising bubbles and a drip at the base | Lopsided body with a mushroom cap of gel and spore motes | Tall bubbling blob with a sickly glow and a pop-bubble on top every few beats |
+| Crystal (Prism) | Clear body with one large facet crystal inside refracting color | Clear body with a crystal cluster growing out of the top | Round body with a ring of small crystals suspended like a belt |
+| Lava (Magma) | Glowing core with dark crust patches, sagging viscously | Crust-heavy dome with glowing cracks and one smoke vent on top | Low spread body with a molten drip lip, cooled glass pebbles at the base |
+| Storm (Tempest) | Dark blue-grey orb with a swirling cloud inside | Orb with a tiny lightning cloud floating above like a hat | Squashed body with a rain-streak skirt that drips upward then falls |
+| Spirit (Wisp) | Ghostly drop fading to transparent at the edges, slow bob | Taller wisp with a flame-like trailing tail instead of a base | Round body with two faint arm-wisps and a soft inner glow |
+| Void (Abyss) | Near-black drop with a starfield inside | Irregular body whose outline slowly shifts between rounded shapes | Drop with a small dark ring orbiting it and a starfield swirl |
 
 Eyes follow HERO_DESIGN §5 per element (Crystal facets, Poison clusters, Spirit and Void single eye or slits). Blob = big round baby eyes. Morph variant of a species = the same variant plus two gel arms and a gel brow.
 
@@ -102,7 +102,7 @@ Morph base: blob body plus two semi-shaped gel tentacle arms, defined eye shape,
 
 ### Plant: Mother Comb
 *"Who kept the bees through the dry scar"*
-**Bio:** When a Greenwild Haven fell and became a dry scar, Mother Comb carried the last hive inside her gel across the ash. She grew a meadow wherever she rested. Bloomcores still hum when they meet her.
+**Bio:** When a Greenwild Haven fell and became a dry scar, Mother Comb carried the last hive inside her gel across the ash. She grew a meadow wherever she rested. Bloomkin still hum when they meet her.
 **Role:** Heal / Grow.
 **Signature skill:** *Honey Hour*: heals the party over time and wakes a stunned ally.
 **Visual (Morph):**
@@ -126,7 +126,7 @@ Morph base: blob body plus two semi-shaped gel tentacle arms, defined eye shape,
 
 ### Ice: Archivist Rhee
 *"Librarian of stopped moments"*
-**Bio:** Rhee keeps the Frostlens monks' silent library in the Crystal Mountains, where each book is a moment frozen before it could go wrong. In the Age of Cracks, Rhee started lending those moments to Keepers in battle. Late returns are not forgiven.
+**Bio:** Rhee keeps the Frostgel monks' silent library in the Crystal Mountains, where each book is a moment frozen before it could go wrong. In the Age of Cracks, Rhee started lending those moments to Keepers in battle. Late returns are not forgiven.
 **Role:** CC / Slow.
 **Signature skill:** *Overdue*: freezes one foe and delays its next turn.
 **Visual (Morph):**
@@ -222,7 +222,7 @@ Morph base: blob body plus two semi-shaped gel tentacle arms, defined eye shape,
 
 ### Spirit: Moth-Widow Ilse
 *"Who carries the names so nobody has to"*
-**Bio:** Ilse walks the grave-glades of the spirit roads, collecting the names of champions who melted in the Age of Cracks. She pins each name to her wings so no Keeper has to carry it alone. Wisplings follow her like moths to a lamp.
+**Bio:** Ilse walks the grave-glades of the spirit roads, collecting the names of champions who melted in the Age of Cracks. She pins each name to her wings so no Keeper has to carry it alone. Wisps follow her like moths to a lamp.
 **Role:** Revive / Utility.
 **Signature skill:** *Pinned Name*: revives a fallen ally with part of its health.
 **Visual (Morph):**
@@ -234,7 +234,7 @@ Morph base: blob body plus two semi-shaped gel tentacle arms, defined eye shape,
 
 ### Void: The Lost-and-Found
 *"Everything it swallows, it returns (eventually)"*
-**Bio:** In the Voidmarch Marches, things fall into cracks: keys, spoons, whole afternoons. One Riftgel started giving them back, a little late and slightly wrong. Havens near the Marches now keep a shelf for what it returns.
+**Bio:** In the Voidmarch Marches, things fall into cracks: keys, spoons, whole afternoons. One Abyss started giving them back, a little late and slightly wrong. Havens near the Marches now keep a shelf for what it returns.
 **Role:** Anti-everything.
 **Signature skill:** *Returned Wrong*: steals one buff from a foe and later gives it to an ally.
 **Visual (Morph):**
@@ -340,14 +340,14 @@ Humanoid base: near-humanoid gel figure with face, hands, drips (HERO_DESIGN §2
   };
   getNamedHero(element, rarity) // null for Common/Uncommon/Rare
   ```
-  Copy Legendary and Mythic text verbatim from `lore.js` so the two projects stay in sync.
-- **Summon rules:** Common/Uncommon/Rare pulls roll a lineage variant (a/b/c) and a generated name (`generateChampionName`, as now). **Epic, Legendary, and Mythic pulls resolve to that element's named hero** and skip the name generator (including the `Grand `/`Lord `/`Mythic ` prefixes). The odds tables and pity in `gameData.js` stay as they are. With one named hero per element per tier, duplicates will be common, so they need a sink (rank-up, bond, or shards). That is a design decision; this doc sets no numbers.
+  Copy Legendary and Mythic text from `lore.js`, retitling lineage names to the Phaser set (`tools/gen-hero-roster.js` does both).
+- **Summon rules:** Common/Uncommon/Rare pulls roll a lineage variant (a/b/c) and a generated name (`generateChampionName`, as now). **Epic, Legendary, and Mythic pulls resolve to that element's named hero** and skip the name generator (including the `Grand `/`Lord `/`Mythic ` prefixes). The odds tables and pity in `gameData.js` stay as they are. With one named hero per element per tier, duplicates will be common, so they need a sink (rank-up, bond, or shards). Undecided: in code, `onDuplicateNamedHero()` is a no-op stub (the copy joins the roster as a normal unit) with a TODO; this doc sets no numbers.
 - **Lore tab:** for Epic+, show name, epithet, bio, role, and signature skill from `heroRoster.js`, then the lineage block. Species keep the lineage block plus the rarity bio.
 - **Signature skill:** the named skill replaces or upgrades one slot of the element's A1/A2/A3 kit. Which slot, and the numbers, are for the combat pass.
 - **Save data:** store `heroId` on the unit so a named hero survives renames and data edits.
 
 ### Issues found in the sources (flag before porting)
-1. **Lineage titles differ between projects.** Codex (`lore.js`, WORLD doc) uses Tideborn, Emberheart, Stonegut, Zephyrkin, Bloomcore, Sparkcoil, Frostlens, Umbrawisp, Luminjelly, Chromeblob, Venomgloop, Prismheart, Magmacore, Tempestorb, Wispling, Riftgel. Phaser `ELEMENT_LORE` uses Emberkin, Stoneward, Zephyr, Bloomkin, Stormcore, Frostgel, Shade, Lumina, Steelgel, Venomkin, Prism, Magma, Tempest, Wisp, Abyss (only Tideborn matches). Legend titles like "Legendary Emberheart" assume the codex names. This doc uses the codex names.
+1. **Lineage titles (decided 2026-09-28).** The game uses the Phaser `ELEMENT_LORE` names: Tideborn, Emberkin, Stoneward, Zephyr, Bloomkin, Stormcore, Frostgel, Shade, Lumina, Steelgel, Venomkin, Prism, Magma, Tempest, Wisp, Abyss. The Slime Adventure codex names (Emberheart, Stonegut, Zephyrkin, Bloomcore, Sparkcoil, Frostlens, Umbrawisp, Luminjelly, Chromeblob, Venomgloop, Prismheart, Magmacore, Tempestorb, Wispling, Riftgel) are retired in this project. Legend titles and ported lore text are retitled to match (for example "Legendary Emberkin"); the mapping lives in `tools/lineage-names.js`.
 2. **Rarity bios conflict.** Phaser `RARITY_LORE.Legendary` says "still slime-bodied, not humanoid" and Mythic "rarely near-humanoid", but `resolveFormTier` gives Legendary evo 5+ and all Mythics the humanoid body, and the codex calls Mythics "Shape-Bound by default." Update the Phaser bios to match.
 3. **Form changes with evolution.** `resolveFormTier` moves Epic evo 3+ to Ascended and Legendary evo 5+ to Humanoid. Recommendation: each named hero keeps its hook and ornament set when it moves up a body (Pell's canoe hull and oar go onto the Ascended torso; Maris's rain hat goes onto the Humanoid). Budget one extra body pass per Epic and Legendary for this.
 4. **Phaser code comment vs code:** the `resolveFormTier` comment says legacy humanoid/ascended "map to shaped", but the code returns `ascended` and `humanoid` as separate tiers. The code matches HERO_DESIGN; fix the comment.

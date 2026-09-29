@@ -1,148 +1,25 @@
 /* ===== Hero roster: species lineages + named Epic / Legendary / Mythic heroes =====
  * GENERATED from docs/HERO_ROSTER.md and Slime Adventure js/data/lore.js
- * (LEGENDARY_LEGENDS / MYTHIC_LEGENDS / ELEMENT_LORE copied verbatim).
+ * (LEGENDARY_LEGENDS / MYTHIC_LEGENDS text copied, lineage names retitled to the
+ * Phaser set via tools/lineage-names.js, e.g. 'Legendary Emberkin').
  * Regenerate with tools/gen-hero-roster.js rather than hand-editing the data blocks.
  *
  * Common / Uncommon / Rare  = species: lineage + variant a/b/c + generated name.
  * Epic / Legendary / Mythic = one named hero per element (see getNamedHero).
  *
- * Founder decisions still open. Defaults live in HERO_ROSTER_CONFIG so they are
- * one-line changes:
- *   - lineageNames: 'codex' (Emberheart, Stonegut, Zephyrkin...) or 'phaser'
- *     (the older Phaser titles: Emberkin, Stoneward, Zephyr...).
- *   - duplicate named pulls: onDuplicateNamedHero() is the only hook.
- *     Placeholder policy converts the duplicate to shards; the shard values are
- *     untuned placeholders (0) until the founder sets them.
+ * Lineage names: the Phaser ELEMENT_LORE titles (Emberkin, Stoneward, Zephyr...),
+ * founder decision 2026-09-28.
+ * Duplicate named pulls: undecided. onDuplicateNamedHero() is the single hook
+ * and is a no-op stub for now (the copy joins the roster like any unit).
  */
 (function (global) {
   'use strict';
 
   var HERO_ROSTER_CONFIG = {
-    lineageNames: 'codex',
-    namedRarities: ['Epic', 'Legendary', 'Mythic'],
-    duplicatePolicy: 'shards',
-    /** Placeholder, NOT tuned. Founder to set real values. */
-    duplicateShardValue: { Epic: 0, Legendary: 0, Mythic: 0 },
-    duplicateShardCurrency: 'slimeShards'
+    namedRarities: ['Epic', 'Legendary', 'Mythic']
   };
 
   var ELEMENT_ORDER = ["Water","Fire","Earth","Wind","Plant","Lightning","Ice","Shadow","Light","Metal","Poison","Crystal","Lava","Storm","Spirit","Void"];
-
-  /** Codex lineage titles and blurbs (Slime Adventure ELEMENT_LORE). */
-  var CODEX_LINEAGES = {
-    "Water": {
-      "title": "Tideborn",
-      "role": "Support / Control",
-      "blurb": "Tideborn slimes remember every river that ever ran. They soothe allies, drown flame, and wash maps clean of ash.",
-      "personality": "Curious, patient, sometimes flood-tempered.",
-      "extended": "Tideborn gel is oldest after Spirit. Village midwives still bathe newborns in a drop of Tideborn dew for luck. In war they are the pulse between strikes — never the loudest, always the reason the party still stands."
-    },
-    "Fire": {
-      "title": "Emberheart",
-      "role": "Nuker / Burst",
-      "blurb": "Emberhearts keep a core of living coal. Short lives in pure water; long legends in war.",
-      "personality": "Bold, loud, fiercely loyal once bonded.",
-      "extended": "Forge-towns barter Emberheart jelly like coin. A bonded Emberheart will burn a path for its Keeper even when the map says the path is stone."
-    },
-    "Earth": {
-      "title": "Stonegut",
-      "role": "Tank / Sustain",
-      "blurb": "Stoneguts pack pebble and clay into armor-gel. They hold lines when the party would scatter.",
-      "personality": "Stubborn, dry-humored, immovable.",
-      "extended": "Stonegut champions sleep standing up. Miners say if you dig and hit something that laughs, you have found one."
-    },
-    "Wind": {
-      "title": "Zephyrkin",
-      "role": "Speed / Debuff",
-      "blurb": "Almost weightless. Zephyrkin skim the battlefield and peel defenses before heavier champs land blows.",
-      "personality": "Restless, joking, hard to pin down.",
-      "extended": "Messengers used to carry Zephyrkin in sealed gourds. Half the letters arrived early; half arrived as confetti."
-    },
-    "Plant": {
-      "title": "Bloomcore",
-      "role": "Heal / Grow",
-      "blurb": "Bloomcores photosynthesize luck. They root into Haven soil and turn exploration into harvest.",
-      "personality": "Gentle until thorns, then very not gentle.",
-      "extended": "A Haven without Bloomcore is a Haven that forgets spring. Their pollen can wake exhausted allies — or choke a hard-realm patrol that refused to leave the glade."
-    },
-    "Lightning": {
-      "title": "Sparkcoil",
-      "role": "Chain DPS",
-      "blurb": "Sparkcoils store storms in a droplet. One wrong bounce and the whole wave lights up.",
-      "personality": "Impulsive genius / chaos.",
-      "extended": "Never store Sparkcoil gel near Chromeblobs unless you enjoy spontaneous forges. Keepers who bond them learn patience by force."
-    },
-    "Ice": {
-      "title": "Frostlens",
-      "role": "CC / Slow",
-      "blurb": "Frostlens freeze time in their pupils. Perfect for locking a boss while the team repositions.",
-      "personality": "Cool, exacting, secretly soft.",
-      "extended": "Glacier monks meditate inside Frostlens rings. The lesson is always the same: stop the world, then choose."
-    },
-    "Shadow": {
-      "title": "Umbrawisp",
-      "role": "Assassin / Hex",
-      "blurb": "Born where light gave up. Umbrawisps erase footprints and cut the threads of enemy skills.",
-      "personality": "Quiet, theatrical, opportunistic.",
-      "extended": "Umbrawisp loyalty is a rumor until it is a blade in a lich's back. They love Keepers who keep secrets and hate Keepers who monologue."
-    },
-    "Light": {
-      "title": "Luminjelly",
-      "role": "Cleanse / Smite",
-      "blurb": "Luminjellies are portable sunrises. They unmask Shadow and Void and keep the Haven warm at night.",
-      "personality": "Earnest, radiant, slightly preachy.",
-      "extended": "Temple choirs keep a Luminjelly above the altar. If it dims during a hymn, the verse was a lie."
-    },
-    "Metal": {
-      "title": "Chromeblob",
-      "role": "Reflect / Armor",
-      "blurb": "Chromeblobs temper gel with ore-memory. They ring like bells when struck and answer with shrapnel.",
-      "personality": "Practical, blunt, craftsman-proud.",
-      "extended": "A Chromeblob that trusts you will let you polish its face. A Chromeblob that does not will polish your ego with scrap."
-    },
-    "Poison": {
-      "title": "Venomgloop",
-      "role": "DoT / Weaken",
-      "blurb": "Venomgloops are patient chemists. A single drip can end a long fight three turns later.",
-      "personality": "Smug, clever, quarantine-required.",
-      "extended": "Alchemists love them. Healers schedule them. Keepers who rush Venomgloop bonds often invent new words for regret."
-    },
-    "Crystal": {
-      "title": "Prismheart",
-      "role": "Hybrid mage",
-      "blurb": "Prismhearts refract any element they touch. Collectors prize them; foes fear the rainbow burst.",
-      "personality": "Curious, fragile-looking, actually diamond.",
-      "extended": "In Crystal Mountains, children play \"catch the Prismheart.\" The Prismheart usually wins and keeps the ball."
-    },
-    "Lava": {
-      "title": "Magmacore",
-      "role": "Heavy AoE",
-      "blurb": "Hotter than Fire, denser than Earth. Magmacores leave glass footprints and bad decisions.",
-      "personality": "Slow burn, then catastrophe.",
-      "extended": "Magmacore gel cools into black glass that still pulses if you hold it to your ear. Do not hold it too long."
-    },
-    "Storm": {
-      "title": "Tempestorb",
-      "role": "Weather control",
-      "blurb": "Tempestorbs are small hurricanes with eyes. They set the tempo of whole waves.",
-      "personality": "Moody, dramatic, dependable in crisis.",
-      "extended": "Sailors nail Tempestorb charms to masts. The charms work best if you also know how to sail."
-    },
-    "Spirit": {
-      "title": "Wispling",
-      "role": "Revive / Soft utility",
-      "blurb": "Wisplings remember champions who melted. They guide, soothe, and occasionally possess bad ideas.",
-      "personality": "Melancholy, kind, uncanny.",
-      "extended": "A Wispling that bonds a Keeper has chosen to stay in the Third Age. That choice is heavier than it looks."
-    },
-    "Void": {
-      "title": "Riftgel",
-      "role": "Anti-everything",
-      "blurb": "Riftgels should not exist — and do anyway. They erase rules, including yours if poorly trained.",
-      "personality": "Alien, hungry for meaning, oddly loyal.",
-      "extended": "To bond a Riftgel is to argue with unmaking and win a temporary truce. Train them, or they train the map into holes."
-    }
-  };
 
   var HERO_ROSTER = {
     "Water": {
@@ -220,7 +97,7 @@
     },
     "Fire": {
       "species": {
-        "lineage": "Emberheart",
+        "lineage": "Emberkin",
         "variants": {
           "a": "Round body with a three-lick flame tuft and a visible coal core",
           "b": "Squat body, flame crest swept back like a mohawk, ember sparks shed on landing",
@@ -251,9 +128,9 @@
       "legendary": {
         "id": "fire_leg_cinder_king",
         "name": "Cinder-King Vorr",
-        "title": "Legendary Emberheart",
+        "title": "Legendary Emberkin",
         "epithet": "The forge that chose a side",
-        "bio": "Vorr was a village forge-fire that refused to go out when the raiders came. The forge melted; the fire stood up. He burned only the iron that would have become chains. A Legendary Emberheart that carries Vorr's coal-heart will never strike a bonded ally — and will never spare a cage.",
+        "bio": "Vorr was a village forge-fire that refused to go out when the raiders came. The forge melted; the fire stood up. He burned only the iron that would have become chains. A Legendary Emberkin that carries Vorr's coal-heart will never strike a bonded ally — and will never spare a cage.",
         "role": null,
         "signature": {
           "name": "Chainbreaker",
@@ -272,9 +149,9 @@
       "mythic": {
         "id": "fire_myth_heart_second",
         "name": "Heart-of-the-Second-Sun",
-        "title": "Mythic Emberheart",
+        "title": "Mythic Emberkin",
         "epithet": "A star that chose the ground",
-        "bio": "A Soft Star fell and refused to go out. It cooled into Mythic Emberheart gel that still remembers vacuum and warmth. Shape-Bound, it walks like a forge that learned mercy. Its Inferno does not only burn foes — it burns the idea that the Haven was ever cold.",
+        "bio": "A Soft Star fell and refused to go out. It cooled into Mythic Emberkin gel that still remembers vacuum and warmth. Shape-Bound, it walks like a forge that learned mercy. Its Inferno does not only burn foes — it burns the idea that the Haven was ever cold.",
         "role": null,
         "signature": {
           "name": "Burn the Cold",
@@ -293,7 +170,7 @@
     },
     "Earth": {
       "species": {
-        "lineage": "Stonegut",
+        "lineage": "Stoneward",
         "variants": {
           "a": "Dense dome with pebbles suspended in bands and a flat slate chip on top",
           "b": "Lumpy boulder shape with a moss patch and a sprouting grass tuft",
@@ -324,9 +201,9 @@
       "legendary": {
         "id": "earth_leg_granny_bedrock",
         "name": "Granny Bedrock",
-        "title": "Legendary Stonegut",
+        "title": "Legendary Stoneward",
         "epithet": "Who sat until the war ended",
-        "bio": "Granny Bedrock sat on a mountain pass for three winters while hard armies tried to cross. They eventually built a road around her. The road is still called Polite Detour. Legendary Stoneguts with her patience turn arenas into walls and jokes into earthquakes.",
+        "bio": "Granny Bedrock sat on a mountain pass for three winters while hard armies tried to cross. They eventually built a road around her. The road is still called Polite Detour. Legendary Stoneward with her patience turn arenas into walls and jokes into earthquakes.",
         "role": null,
         "signature": {
           "name": "Polite Detour",
@@ -345,7 +222,7 @@
       "mythic": {
         "id": "earth_myth_world_shelf",
         "name": "World-Shelf",
-        "title": "Mythic Stonegut",
+        "title": "Mythic Stoneward",
         "epithet": "The continent that sat up",
         "bio": "Myths say a shelf of the world grew tired of being walked on without thanks. It stood as Mythic Earth gel. Shape-Bound World-Shelf champions make arenas feel smaller and Keepers feel taller. They do not rush. The map moves around them.",
         "role": null,
@@ -366,7 +243,7 @@
     },
     "Wind": {
       "species": {
-        "lineage": "Zephyrkin",
+        "lineage": "Zephyr",
         "variants": {
           "a": "Near-clear teardrop tilted forward, white streaks swirling inside",
           "b": "Small hovering puff with two feather-shaped gel flicks at the sides",
@@ -397,9 +274,9 @@
       "legendary": {
         "id": "wind_leg_unposted_letter",
         "name": "The Unposted Letter",
-        "title": "Legendary Zephyrkin",
+        "title": "Legendary Zephyr",
         "epithet": "News that arrives before the event",
-        "bio": "A Zephyrkin once delivered a warning of a Void Crack three days before the crack opened. Scholars still argue how. Poets do not. Legendary Wind champions that inherit the Letter can peel a foe's defense before the foe understands the joke.",
+        "bio": "A Zephyr once delivered a warning of a Void Crack three days before the crack opened. Scholars still argue how. Poets do not. Legendary Wind champions that inherit the Letter can peel a foe's defense before the foe understands the joke.",
         "role": null,
         "signature": {
           "name": "Arrives Early",
@@ -418,7 +295,7 @@
       "mythic": {
         "id": "wind_myth_breath_between",
         "name": "Breath-Between-Ages",
-        "title": "Mythic Zephyrkin",
+        "title": "Mythic Zephyr",
         "epithet": "The silence after a door closes",
         "bio": "Between the Second and Third Age, something exhaled. That breath never finished leaving. Mythic Wind gel is the unfinished exhale — and it chooses Keepers who leave doors open for strays.",
         "role": null,
@@ -439,7 +316,7 @@
     },
     "Plant": {
       "species": {
-        "lineage": "Bloomcore",
+        "lineage": "Bloomkin",
         "variants": {
           "a": "Round green body with a single sprout and two leaves on top",
           "b": "Mossy low mound with three tiny flowers and leaves suspended inside",
@@ -450,7 +327,7 @@
         "id": "plant_epic_comb",
         "name": "Mother Comb",
         "epithet": "Who kept the bees through the dry scar",
-        "bio": "When a Greenwild Haven fell and became a dry scar, Mother Comb carried the last hive inside her gel across the ash. She grew a meadow wherever she rested. Bloomcores still hum when they meet her.",
+        "bio": "When a Greenwild Haven fell and became a dry scar, Mother Comb carried the last hive inside her gel across the ash. She grew a meadow wherever she rested. Bloomkin still hum when they meet her.",
         "role": "Heal / Grow",
         "signature": {
           "name": "Honey Hour",
@@ -470,9 +347,9 @@
       "legendary": {
         "id": "plant_leg_harvest_saint",
         "name": "Harvest-Saint Briar",
-        "title": "Legendary Bloomcore",
+        "title": "Legendary Bloomkin",
         "epithet": "Mercy with thorns",
-        "bio": "Briar grew a orchard overnight around a starving Haven, then grew a second orchard of thorns around the raiders who came for it. Children still leave berry crowns on Bloomcore stones. A Legendary Plant champion with Briar's root-memory heals like spring and punishes like a hedge with opinions.",
+        "bio": "Briar grew a orchard overnight around a starving Haven, then grew a second orchard of thorns around the raiders who came for it. Children still leave berry crowns on Bloomkin stones. A Legendary Plant champion with Briar's root-memory heals like spring and punishes like a hedge with opinions.",
         "role": null,
         "signature": {
           "name": "Two Orchards",
@@ -491,7 +368,7 @@
       "mythic": {
         "id": "plant_myth_seed_eternal",
         "name": "Seed-of-the-Eternal-Garden",
-        "title": "Mythic Bloomcore",
+        "title": "Mythic Bloomkin",
         "epithet": "Spring that cannot be scheduled",
         "bio": "The Eternal Garden is not a place on the map; it is a promise. Mythic Plant gel is a seed of that promise. Shape-Bound, it grows party strength like canopy. Enemies find their boots full of inconvenient flowers.",
         "role": null,
@@ -512,7 +389,7 @@
     },
     "Lightning": {
       "species": {
-        "lineage": "Sparkcoil",
+        "lineage": "Stormcore",
         "variants": {
           "a": "Pale yellow drop with a zigzag antenna and inner arcs",
           "b": "Round body with two static-charged hair spikes that stand up and twitch",
@@ -543,9 +420,9 @@
       "legendary": {
         "id": "lightning_leg_arc_broken",
         "name": "Arc of the Broken Bell",
-        "title": "Legendary Sparkcoil",
+        "title": "Legendary Stormcore",
         "epithet": "Who rang the sky",
-        "bio": "When a hard-realm siege tower approached a coastal Haven, a Sparkcoil climbed the tower and became the clapper of a bell that was not there. The tower fell as lightning. The Haven kept the scorch mark as a calendar. Legendary Lightning gel that remembers Arc chains doom across a wave like gossip.",
+        "bio": "When a hard-realm siege tower approached a coastal Haven, a Stormcore climbed the tower and became the clapper of a bell that was not there. The tower fell as lightning. The Haven kept the scorch mark as a calendar. Legendary Lightning gel that remembers Arc chains doom across a wave like gossip.",
         "role": null,
         "signature": {
           "name": "Toll of the Tower",
@@ -564,9 +441,9 @@
       "mythic": {
         "id": "lightning_myth_syntax_storms",
         "name": "Syntax-of-Storms",
-        "title": "Mythic Sparkcoil",
+        "title": "Mythic Stormcore",
         "epithet": "Language of the sky",
-        "bio": "Lightning is how the sky talks. Mythic Sparkcoil is a complete sentence. Shape-Bound, it speaks chain-bolts that rewrite turn order. Keepers who bond it learn to flinch less at good news arriving too fast.",
+        "bio": "Lightning is how the sky talks. Mythic Stormcore is a complete sentence. Shape-Bound, it speaks chain-bolts that rewrite turn order. Keepers who bond it learn to flinch less at good news arriving too fast.",
         "role": null,
         "signature": {
           "name": "Complete Sentence",
@@ -585,7 +462,7 @@
     },
     "Ice": {
       "species": {
-        "lineage": "Frostlens",
+        "lineage": "Frostgel",
         "variants": {
           "a": "Semi-frozen dome with a frost rim and one icicle point on top",
           "b": "Faceted-edged cube-ish body, softened corners, snowflake frozen in the core",
@@ -596,7 +473,7 @@
         "id": "ice_epic_rhee",
         "name": "Archivist Rhee",
         "epithet": "Librarian of stopped moments",
-        "bio": "Rhee keeps the Frostlens monks' silent library in the Crystal Mountains, where each book is a moment frozen before it could go wrong. In the Age of Cracks, Rhee started lending those moments to Keepers in battle. Late returns are not forgiven.",
+        "bio": "Rhee keeps the Frostgel monks' silent library in the Crystal Mountains, where each book is a moment frozen before it could go wrong. In the Age of Cracks, Rhee started lending those moments to Keepers in battle. Late returns are not forgiven.",
         "role": "CC / Slow",
         "signature": {
           "name": "Overdue",
@@ -616,7 +493,7 @@
       "legendary": {
         "id": "ice_leg_judge_stillwater",
         "name": "Judge Stillwater",
-        "title": "Legendary Frostlens",
+        "title": "Legendary Frostgel",
         "epithet": "The pause that saved a city",
         "bio": "Stillwater froze a collapsing bridge mid-fall so citizens could finish crossing, then unfroze it into a gentle slide into the river. No one drowned. The bridge still complains in winter. Legendary Ice champions who carry the Judge stop bosses mid-sentence.",
         "role": null,
@@ -637,7 +514,7 @@
       "mythic": {
         "id": "ice_myth_clock_chose",
         "name": "Clock-That-Chose-Winter",
-        "title": "Mythic Frostlens",
+        "title": "Mythic Frostgel",
         "epithet": "Time, politely refused",
         "bio": "A clock in a glacier monastery stopped at the moment a Haven would have fallen — and the Haven did not fall. Mythic Ice gel is that stopped second, given will. Shape-Bound, it freezes boss ultimates mid-boast.",
         "role": null,
@@ -658,7 +535,7 @@
     },
     "Shadow": {
       "species": {
-        "lineage": "Umbrawisp",
+        "lineage": "Shade",
         "variants": {
           "a": "Dark teardrop with smoky edges that trail on movement",
           "b": "Low slinking body with two pointed ear-wisps of smoke",
@@ -689,7 +566,7 @@
       "legendary": {
         "id": "shadow_leg_quiet_knife",
         "name": "Quiet-Knife Nox",
-        "title": "Legendary Umbrawisp",
+        "title": "Legendary Shade",
         "epithet": "The apology written in umbra",
         "bio": "Nox was a thief who stole only from hard-realm supply lines and left Tideborn jelly for orphans. When captured, Nox melted through the bars and left a note: \"You should hire better locks — or better Keepers.\" Legendary Shadow gel with Nox's humor ends fights that speeches cannot.",
         "role": null,
@@ -710,7 +587,7 @@
       "mythic": {
         "id": "shadow_myth_umbral_treaty",
         "name": "Umbral-Treaty",
-        "title": "Mythic Umbrawisp",
+        "title": "Mythic Shade",
         "epithet": "Night that signed its name",
         "bio": "Night once negotiated with day for equal time. The signature was Mythic Shadow gel. Shape-Bound, the Umbral-Treaty ends fights in the space between lantern and dark. It keeps promises the way knives keep edges.",
         "role": null,
@@ -731,7 +608,7 @@
     },
     "Light": {
       "species": {
-        "lineage": "Luminjelly",
+        "lineage": "Lumina",
         "variants": {
           "a": "Bright round body with a glowing core and iridescent film",
           "b": "Floating drop with a small ring of light hovering above",
@@ -762,7 +639,7 @@
       "legendary": {
         "id": "light_leg_dawn_herald",
         "name": "Dawn-Herald Solenne",
-        "title": "Legendary Luminjelly",
+        "title": "Legendary Lumina",
         "epithet": "Who refused a false sunrise",
         "bio": "A hard-realm illusionist cast a fake dawn to panic a Haven into opening its gates. Solenne glowed true and the false sun cracked. The illusionist fled into a shadow that did not want him. Legendary Light champions of Solenne's line smite lies and warm beds equally.",
         "role": null,
@@ -783,7 +660,7 @@
       "mythic": {
         "id": "light_myth_candle_against",
         "name": "Candle-Against-the-Crack",
-        "title": "Mythic Luminjelly",
+        "title": "Mythic Lumina",
         "epithet": "Small flame, large refusal",
         "bio": "A single candle held at the lip of a Void Crack refused to go out for nine days. The candle was Mythic Light gel that had not yet admitted what it was. Shape-Bound, it is still that refusal — bright enough to make hard geometry blink.",
         "role": null,
@@ -804,7 +681,7 @@
     },
     "Metal": {
       "species": {
-        "lineage": "Chromeblob",
+        "lineage": "Steelgel",
         "variants": {
           "a": "Mercury dome with a mirror finish and a rivet-bead on top",
           "b": "Heavy low body with a gear-tooth ridge along the back",
@@ -835,7 +712,7 @@
       "legendary": {
         "id": "metal_leg_smith_echo",
         "name": "Smith-Echo Korr",
-        "title": "Legendary Chromeblob",
+        "title": "Legendary Steelgel",
         "epithet": "The anvil that walked home",
         "bio": "Korr was an anvil blessed by a soft-blooded smith. When the smith died, the anvil stood up and finished the unfinished swords, then walked them to the Haven armory. Legendary Metal gel that rings with Korr answers every hit with craft and scrap.",
         "role": null,
@@ -856,7 +733,7 @@
       "mythic": {
         "id": "metal_myth_crown_was",
         "name": "Crown-That-Was-Tools",
-        "title": "Mythic Chromeblob",
+        "title": "Mythic Steelgel",
         "epithet": "Labor crowned itself",
         "bio": "Workers melted their tools into a crown for a soft queen who never asked for one. The crown walked away as Mythic Metal gel. Shape-Bound, it reflects armies and builds Havens out of scrap and spiteful excellence.",
         "role": null,
@@ -877,7 +754,7 @@
     },
     "Poison": {
       "species": {
-        "lineage": "Venomgloop",
+        "lineage": "Venomkin",
         "variants": {
           "a": "Murky dome with rising bubbles and a drip at the base",
           "b": "Lopsided body with a mushroom cap of gel and spore motes",
@@ -908,7 +785,7 @@
       "legendary": {
         "id": "poison_leg_apothecary_mire",
         "name": "Apothecary Mire",
-        "title": "Legendary Venomgloop",
+        "title": "Legendary Venomkin",
         "epithet": "Dose carefully, win completely",
         "bio": "Mire cured a plague by becoming the plague first — tasting every toxin until the cure was obvious. The village built a shrine and a quarantine. Both are still used. Legendary Poison champions of Mire end long fights three turns after the foe feels fine.",
         "role": null,
@@ -929,7 +806,7 @@
       "mythic": {
         "id": "poison_myth_cure_wore",
         "name": "Cure-That-Wore-Fangs",
-        "title": "Mythic Venomgloop",
+        "title": "Mythic Venomkin",
         "epithet": "Medicine with a sense of humor",
         "bio": "The first cure for hard-shard fever was also a venom. Mythic Poison gel remembers both truths. Shape-Bound, it doses the battlefield until only the Haven's side can stand the aftertaste.",
         "role": null,
@@ -950,7 +827,7 @@
     },
     "Crystal": {
       "species": {
-        "lineage": "Prismheart",
+        "lineage": "Prism",
         "variants": {
           "a": "Clear body with one large facet crystal inside refracting color",
           "b": "Clear body with a crystal cluster growing out of the top",
@@ -981,7 +858,7 @@
       "legendary": {
         "id": "crystal_leg_mirror_saint",
         "name": "Mirror-Saint Lira",
-        "title": "Legendary Prismheart",
+        "title": "Legendary Prism",
         "epithet": "Who showed the Void its own face",
         "bio": "Lira reflected a Void rift so the rift saw itself and flinched. The flinch lasted long enough for a Haven to evacuate. Crystal Mountains still hold a festival of broken mirrors in her honor. Legendary Crystal gel that carries Lira refracts every element into a sentence the foe cannot finish.",
         "role": null,
@@ -1002,7 +879,7 @@
       "mythic": {
         "id": "crystal_myth_prism_unwritten",
         "name": "Prism-of-Unwritten-Maps",
-        "title": "Mythic Prismheart",
+        "title": "Mythic Prism",
         "epithet": "Cartography of possibility",
         "bio": "A crystal that showed maps of Havens that did not exist yet. Those Havens were built. Mythic Crystal gel is that crystal, still projecting futures. Shape-Bound, it turns elements into options.",
         "role": null,
@@ -1023,7 +900,7 @@
     },
     "Lava": {
       "species": {
-        "lineage": "Magmacore",
+        "lineage": "Magma",
         "variants": {
           "a": "Glowing core with dark crust patches, sagging viscously",
           "b": "Crust-heavy dome with glowing cracks and one smoke vent on top",
@@ -1054,7 +931,7 @@
       "legendary": {
         "id": "lava_leg_glassroad_ember",
         "name": "Glassroad Ember",
-        "title": "Legendary Magmacore",
+        "title": "Legendary Magma",
         "epithet": "Who paved a retreat in fireglass",
         "bio": "When a Haven fled a hard army, Ember laid a road of cooling glass behind them — smooth for bare feet, murder for iron boots. The road is still too hot for horses. Legendary Lava champions of Ember turn arenas into calderas of second chances.",
         "role": null,
@@ -1075,7 +952,7 @@
       "mythic": {
         "id": "lava_myth_hearth_deep",
         "name": "Hearth-of-the-Deep-Fault",
-        "title": "Mythic Magmacore",
+        "title": "Mythic Magma",
         "epithet": "Anger that warms the village",
         "bio": "Deep faults dream of surface kitchens. Mythic Lava gel is a fault that learned hospitality. Shape-Bound, its eruption clears invaders and leaves glass roads home.",
         "role": null,
@@ -1096,7 +973,7 @@
     },
     "Storm": {
       "species": {
-        "lineage": "Tempestorb",
+        "lineage": "Tempest",
         "variants": {
           "a": "Dark blue-grey orb with a swirling cloud inside",
           "b": "Orb with a tiny lightning cloud floating above like a hat",
@@ -1127,7 +1004,7 @@
       "legendary": {
         "id": "storm_leg_captain_squall",
         "name": "Captain Squall",
-        "title": "Legendary Tempestorb",
+        "title": "Legendary Tempest",
         "epithet": "Fleet without ships",
         "bio": "Squall herded fishing boats through a siege fog by becoming the wind that knew the reefs. Sailors toast \"the Captain\" even inland. Legendary Storm gel that remembers Squall sets the tempo of waves and the mood of skies.",
         "role": null,
@@ -1148,7 +1025,7 @@
       "mythic": {
         "id": "storm_myth_parliament_clouds",
         "name": "Parliament-of-Clouds",
-        "title": "Mythic Tempestorb",
+        "title": "Mythic Tempest",
         "epithet": "Weather with a constitution",
         "bio": "Clouds once held council and elected a voice. Mythic Storm gel is the gavel. Shape-Bound, it legislates tempo: when the party moves, when the foe waits, when the sky agrees.",
         "role": null,
@@ -1169,7 +1046,7 @@
     },
     "Spirit": {
       "species": {
-        "lineage": "Wispling",
+        "lineage": "Wisp",
         "variants": {
           "a": "Ghostly drop fading to transparent at the edges, slow bob",
           "b": "Taller wisp with a flame-like trailing tail instead of a base",
@@ -1180,7 +1057,7 @@
         "id": "spirit_epic_ilse",
         "name": "Moth-Widow Ilse",
         "epithet": "Who carries the names so nobody has to",
-        "bio": "Ilse walks the grave-glades of the spirit roads, collecting the names of champions who melted in the Age of Cracks. She pins each name to her wings so no Keeper has to carry it alone. Wisplings follow her like moths to a lamp.",
+        "bio": "Ilse walks the grave-glades of the spirit roads, collecting the names of champions who melted in the Age of Cracks. She pins each name to her wings so no Keeper has to carry it alone. Wisps follow her like moths to a lamp.",
         "role": "Revive / Utility",
         "signature": {
           "name": "Pinned Name",
@@ -1200,7 +1077,7 @@
       "legendary": {
         "id": "spirit_leg_lantern_walker",
         "name": "Lantern-Walker Ashen",
-        "title": "Legendary Wispling",
+        "title": "Legendary Wisp",
         "epithet": "Guide of the unmelted",
         "bio": "Ashen walks spirit roads with a lantern made of memory. Champions who melted in old wars sometimes follow the light back into useful dreams. Keepers who bond Legendary Spirit gel sleep better — and wake with advice they did not ask for.",
         "role": null,
@@ -1221,7 +1098,7 @@
       "mythic": {
         "id": "spirit_myth_choir_unmelted",
         "name": "Choir-of-the-Unmelted",
-        "title": "Mythic Wispling",
+        "title": "Mythic Wisp",
         "epithet": "Every soft death that stayed helpful",
         "bio": "Not every melted champion is gone. Mythic Spirit gel is a choir of their unfinished kindness. Shape-Bound, it guides, revives will, and reminds Keepers why the work is worth the quiet hours.",
         "role": null,
@@ -1242,7 +1119,7 @@
     },
     "Void": {
       "species": {
-        "lineage": "Riftgel",
+        "lineage": "Abyss",
         "variants": {
           "a": "Near-black drop with a starfield inside",
           "b": "Irregular body whose outline slowly shifts between rounded shapes",
@@ -1253,7 +1130,7 @@
         "id": "void_epic_lost_and_found",
         "name": "The Lost-and-Found",
         "epithet": "Everything it swallows, it returns (eventually)",
-        "bio": "In the Voidmarch Marches, things fall into cracks: keys, spoons, whole afternoons. One Riftgel started giving them back, a little late and slightly wrong. Havens near the Marches now keep a shelf for what it returns.",
+        "bio": "In the Voidmarch Marches, things fall into cracks: keys, spoons, whole afternoons. One Abyss started giving them back, a little late and slightly wrong. Havens near the Marches now keep a shelf for what it returns.",
         "role": "Anti-everything",
         "signature": {
           "name": "Returned Wrong",
@@ -1273,9 +1150,9 @@
       "legendary": {
         "id": "void_leg_negotiated_hole",
         "name": "The Negotiated Hole",
-        "title": "Legendary Riftgel",
+        "title": "Legendary Abyss",
         "epithet": "Unmaking on a leash of trust",
-        "bio": "A Riftgel once agreed, in writing of absences, not to erase a Haven if the Haven fed it interesting rules to break elsewhere. The contract is kept in a box that is also a rumor. Legendary Void gel that carries the Hole is loyal in a way that scares theologians and delights tacticians.",
+        "bio": "A Abyss once agreed, in writing of absences, not to erase a Haven if the Haven fed it interesting rules to break elsewhere. The contract is kept in a box that is also a rumor. Legendary Void gel that carries the Hole is loyal in a way that scares theologians and delights tacticians.",
         "role": null,
         "signature": {
           "name": "Terms and Conditions",
@@ -1294,7 +1171,7 @@
       "mythic": {
         "id": "void_myth_exception",
         "name": "The Exception",
-        "title": "Mythic Riftgel",
+        "title": "Mythic Abyss",
         "epithet": "Unmaking that made an exception for you",
         "bio": "The Void does not grant exceptions. Mythic Void gel is the exception anyway — a hole that decided a Haven was interesting enough to spare. Shape-Bound, The Exception erases enemy rules while carefully not erasing the map that feeds it stories. Bonding it is the riskiest kindness in the Softened Realms.",
         "role": null,
@@ -1367,24 +1244,18 @@
   /**
    * The one hook for duplicate named pulls. Called by performSummon when a pull
    * resolves to a named hero the player already owns.
-   * Returns { keep: boolean, converted: {currency, amount} | null }.
-   * Placeholder policy 'shards': do not add the copy; grant duplicateShardValue
-   * (untuned, 0 by default) and count the dupe on the owned unit.
+   * Returns { keep: boolean }. keep:false would drop the copy from the roster.
+   *
+   * TODO(founder): duplicate policy is undecided (rank-up, bond, or shards).
+   * No-op stub: no conversion, no numbers; the copy is kept as a normal unit.
    */
-  function onDuplicateNamedHero(state, pulled, owned) {
-    var cfg = HERO_ROSTER_CONFIG;
-    if (cfg.duplicatePolicy === 'keep') return { keep: true, converted: null };
-    var amount = (cfg.duplicateShardValue && cfg.duplicateShardValue[pulled.rarity]) || 0;
-    var cur = cfg.duplicateShardCurrency;
-    if (state && state.resources && amount) state.resources[cur] = (state.resources[cur] || 0) + amount;
-    if (owned) owned.namedDupes = (owned.namedDupes || 0) + 1;
-    return { keep: false, converted: { currency: cur, amount: amount } };
+  function onDuplicateNamedHero(state, pulled, owned) { // eslint-disable-line no-unused-vars
+    return { keep: true };
   }
 
   var API = {
     HERO_ROSTER_CONFIG: HERO_ROSTER_CONFIG,
     HERO_ROSTER: HERO_ROSTER,
-    CODEX_LINEAGES: CODEX_LINEAGES,
     ELEMENT_ORDER: ELEMENT_ORDER,
     getNamedHero: getNamedHero,
     getHeroById: getHeroById,

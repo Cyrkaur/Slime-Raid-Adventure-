@@ -893,10 +893,7 @@
       if (owned && HRs.onDuplicateNamedHero) {
         var dup = HRs.onDuplicateNamedHero(state, champ, owned) || { keep: true };
         keep = dup.keep !== false;
-        if (!keep) {
-          champ.duplicateOf = owned.id;
-          champ.convertedTo = dup.converted || null;
-        }
+        champ.duplicateOf = owned.id;
       }
       if (keep) state.roster.push(champ);
       results.push(champ);
