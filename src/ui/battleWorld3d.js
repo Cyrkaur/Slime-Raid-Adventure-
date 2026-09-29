@@ -5414,6 +5414,7 @@
       var target = towardId != null ? figures[towardId] : null;
       if (!fig || fig.dead || fig.melting) return;
       if (fig.playClip) fig.playClip('attack', 0.06);
+      if (fig.heroLook && target && target.root) fig.heroLook(target.root, 1.4);
       // Lunge across the lane toward the enemy line
       // Bounce = actualize. Pose may already be held from cast start (poseOwned).
       var across = fig.isFoe ? -1 : 1;
@@ -8011,7 +8012,7 @@
       var fi;
       for (fi = 0; fi < ids.length; fi++) {
         var fig = figures[ids[fi]];
-        if (fig.heroTick) fig.heroTick(dt);
+        if (fig.heroTick) fig.heroTick(dt, figures);
         if (fig.dead || fig.melting) continue;
         if ((fi + Math.floor(clock * 18)) % 2 === 0) {
           applyWobble(fig, clock + fig.phase);
