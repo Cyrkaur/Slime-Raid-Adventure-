@@ -54,25 +54,61 @@ for v in bm.verts:
     hs *= 1.0 + P['spread'] * math.exp(-((z + 0.25) / 0.28) ** 2)
     zz += P['tip'] * max(0, z - 0.75) ** 2 * 4
     co = Vector((x * P['rx'] * hs, y * P['rx'] * hs, zz))
+    if K['hook'] == 'skep':
+        # Serif Batch A: rounded dome skep, width 1.18 x height, 5 coil bands + dome cap, 0.08 W notches at each seam
+        SK_H = 1.20; SK_W = 1.18 * SK_H; SK_N = 0.08 * SK_W
+        def sk_rv(zn): return (SK_W / 2 - SK_N) * (1 - 0.22 * smooth(0.0, 0.66, zn))     # bell: widest band at the floor
+        def sk_r(zn):
+            if zn < 0.65:
+                t_ = (zn / 0.13) % 1.0
+                if zn < 0.065: return sk_rv(zn) + SK_N * (0.80 + 0.20 * math.sqrt(max(0.0, 1 - (1 - zn / 0.065) ** 2)))  # flat floor band
+                return sk_rv(zn) + SK_N * max(0.0, 1 - (2 * t_ - 1) ** 2) ** 0.3   # flatter coil face, crisper seam notch
+            rs = sk_rv(0.65); a_ = rs + SK_N * 0.9
+            if zn < 0.70: u_ = (zn - 0.70) / 0.05; return rs + (a_ - rs) * math.sqrt(max(0.0, 1 - u_ * u_))
+            u_ = min(1.0, (zn - 0.70) / 0.30); return a_ * math.sqrt(max(0.0, 1 - u_ * u_)) ** 0.85
+        tp = math.acos(max(-1.0, min(1.0, z))) / math.pi
+        dxy = Vector((x, y, 0)); dxy = dxy.normalized() if dxy.length > 1e-6 else Vector((0, 0, 0))
+        if tp < 0.86:
+            zn = 1 - tp / 0.86; rad = sk_r(zn); zs_ = zn * SK_H
+        else:
+            zn = 0.0; rad = sk_r(0.0) * (1 - (tp - 0.86) / 0.14) ** 0.5; zs_ = 0.0
+        # entrance arch at the base front (0.22 W wide x 0.16 W tall), pushed in and dark inside
+        aw = 0.11 * SK_W; ah = 0.16 * SK_W
+        dxa = adist(math.atan2(y, x), FRONT) * rad
+        if abs(dxa) < aw + 0.03 and zs_ < ah + 0.03:
+            ztop_a = ah * math.sqrt(max(0.0, 1 - (min(abs(dxa), aw) / aw) ** 2))
+            f_ = smooth(-0.015, 0.02, ztop_a - zs_) * smooth(-0.015, 0.02, aw - abs(dxa))
+            rad -= 0.20 * f_
+        v.co = Vector((dxy.x * rad, dxy.y * rad, zs_ + 0.02)); continue
+    if K['hook'] == 'canoe':
+        co.y *= 1 - 0.20 * (1 - smooth(-0.05, 0.30, zz))      # narrow the waterline so the body fits the hull beam
     for F in FOOT:
         g = math.exp(-((d - F).length ** 2) / 0.26 ** 2); co += Vector((F.x, F.y, 0)).normalized() * 0.07 * g
     phi = math.atan2(y, x)
     sagk = 0.10 * math.exp(-((z + 0.18) / 0.20) ** 2) * (1 + 0.45 * math.sin(LOBES * phi + SEED))
     co.x *= 1 + sagk; co.y *= 1 + sagk
-    if K['hook'] == 'skep':
-        # straw bee skep: stacked horizontal ridge rings up the dome
-        zn = (zz + ZB) / (P['ztop'] + ZB)
-        if 0.18 < zn < 0.97:
-            rid = abs(math.sin(zn * math.pi * 7.0)) ** 0.45      # 7 fat coils, narrow grooves between
-            k_ = 1 + 0.10 * rid - 0.06
-            co.x *= k_; co.y *= k_
     co.x += 0.04 * max(0, z) ** 1.5
     n = _nz.noise(d * 1.7 + Vector((SEED * 3.1, 0, 0)))
     co += Vector((x, y, 0.4 * z)) * 0.028 * n
     co.z += LIFT; v.co = co
-H = max(v.co.z for v in bm.verts)
-EYE_Z = dict(water=0.52, fire=0.50, plant=0.50)[EL]
-ZE = H * EYE_Z; MZ = H * (EYE_Z - 0.15)
+BOT0 = min(v.co.z for v in bm.verts); W = max(v.co.x for v in bm.verts) - min(v.co.x for v in bm.verts)
+Hb = max(v.co.z for v in bm.verts) - BOT0          # body height, seat to top of gel (Serif's H)
+DZ = 0.0
+if K['hook'] == 'canoe':
+    SUB = 0.18 * Hb                                   # body depth inside the hull
+    sl_ = [v.co.x for v in bm.verts if abs(v.co.z - (BOT0 + SUB)) < 0.03]
+    W = max(sl_) - min(sl_)                          # Serif's W = visible body width at the gunwale line
+    DZ = 0.33 * W - SUB - BOT0
+if K['hook'] == 'brazier':
+    RIMZ = 0.06 * W + 0.17 * Hb + 0.537 * W                          # ball feet + stubby legs + bowl below the rim
+    DZ = (RIMZ - 0.60 * Hb) - BOT0                                  # rim at 60% of H above the seat
+for v in bm.verts: v.co.z += DZ
+BOT = BOT0 + DZ; H = max(v.co.z for v in bm.verts)
+def hz(f): return BOT + f * (H - BOT)
+EYE_Z = dict(water=0.52, fire=0.76, plant=0.50)[EL]
+if K['hook'] == 'skep': EYE_Z = 0.455            # centre of coil band 4, clear of the seams
+ZE = hz(EYE_Z); MZ = ZE - (0.10 if EL == 'fire' else 0.15) * (H - BOT)
+print('MEASURE W', round(W, 3), 'Hb', round(Hb, 3), 'BOT', round(BOT, 3), 'H', round(H, 3))
 AE = [math.atan2(-1, s * 0.42) for s in (1, -1)]
 # face sculpt: morph = defined eye shape -> firmer brow ridge + deeper socket than the blob
 for v in bm.verts:
@@ -137,15 +173,29 @@ HEAD, BODYO, ROOTO, ARML, ARMR, CREST, ORBIT = [], [], [], [], [], [], []
 MERGE = []
 # ---------------- tentacle arms (morph) ----------------
 ARM_PTS = {}
+def V(x, y, z): return Vector((x, y, z))
 for s, side in ((1, 'L'), (-1, 'R')):
-    pts = [Vector((s * 0.36, 0.02, 0.50)), Vector((s * 0.60, -0.04, 0.47)), Vector((s * 0.80, -0.11, 0.39)), Vector((s * 0.92, -0.17, 0.33))]
+    rad_, fac_, tip_r = 0.12, (1.25, 0.95, 0.72, 0.55), 0.075
+    pts = [V(s * 0.36, 0.02, 0.50), V(s * 0.60, -0.04, 0.47), V(s * 0.80, -0.11, 0.39), V(s * 0.92, -0.17, 0.33)]
+    if K['hook'] == 'canoe' and side == 'R':      # oar arm: shoulder to a hand 0.65 W out, 0.9 W up
+        pts = [V(-0.38, -0.02, BOT + 0.50), V(-0.56, -0.05, BOT + 0.66), V(-0.70, -0.07, 0.80 * W), V(-0.65 * W, -0.08, 0.90 * W)]
+    elif K['hook'] == 'canoe':                    # short left arm resting on the near gunwale
+        pts = [V(0.38, -0.02, BOT + 0.50), V(0.54, -0.16, BOT + 0.48), V(0.64, -0.32, 0.33 * W + 0.12), V(0.68, -0.46, 0.33 * W + 0.06)]
+        fac_ = (1.2, 0.95, 0.8, 0.7)
+    elif K['hook'] == 'brazier':                  # small nubs resting on the rim, stopping short of the rim corners
+        pts = [V(s * 0.48, -0.10, RIMZ + 0.12), V(s * 0.64, -0.22, RIMZ + 0.10), V(s * 0.76, -0.34, RIMZ + 0.085), V(s * 0.82, -0.42, RIMZ + 0.08)]
+        rad_, fac_, tip_r = 0.094, (1.15, 1.0, 0.95, 0.9), 0.088
+    elif K['hook'] == 'skep':                     # short arms tucked in front of the lower ridges, hands either side of the mouth, door left clear
+        pts = [V(s * 0.36, -0.56, 0.42), V(s * 0.31, -0.74, 0.37), V(s * 0.27, -0.83, 0.34), V(s * 0.23, -0.87, 0.33)]
+        fac_ = (1.1, 0.9, 0.75, 0.62)
     ARM_PTS[side] = pts
-    MERGE.append(curve_tube('Arm' + side, [(pts[0], 1.25), (pts[1], 0.95), (pts[2], 0.72), (pts[3], 0.55)], 0.12, M_BODY, res=8))
-    MERGE.append(uvs('ArmTip' + side, pts[3] + Vector((s * 0.02, -0.01, 0)), (0.075, 0.075, 0.07), M_BODY, 16, 10))
+    MERGE.append(curve_tube('Arm' + side, [(pts[0], fac_[0]), (pts[1], fac_[1]), (pts[2], fac_[2]), (pts[3], fac_[3])], rad_, M_BODY, res=8))
+    MERGE.append(uvs('ArmTip' + side, pts[3] + (pts[3] - pts[2]).normalized() * 0.02, (tip_r, tip_r, tip_r * 0.93), M_BODY, 16, 10))
 # drips + beads (element kit)
 DRIPS = dict(water=[(-145, 0.60, 1.0), (-28, 0.66, 0.9), (160, 0.62, 1.0)],
              fire=[(-150, 0.50, 1.1), (40, 0.45, 0.9), (170, 0.52, 1.0)],
              plant=[(-135, 0.58, 1.0), (25, 0.60, 1.0), (150, 0.50, 0.8)])[EL]
+if K['hook'] in ('canoe', 'brazier', 'skep'): DRIPS = []
 for i, (az, zf, w) in enumerate(DRIPS):
     a_ = math.radians(az); dv = Vector((math.cos(a_), math.sin(a_), 0)); pts = []
     for k in range(6):
@@ -156,21 +206,24 @@ for i, (az, zf, w) in enumerate(DRIPS):
 
 # ---------------- hero hooks (gel parts that fuse into the body) ----------------
 CREST_MERGE = []   # gel fused into body but weighted to the crest bone (above the head)
-if K['hook'] == 'canoe':
-    # right arm flattens into a broad paddle blade held out in front of the hull (thin toward the camera)
-    tip = ARM_PTS['R'][3]; bc = tip + Vector((0.02, -0.24, -0.16))
-    MERGE.append(curve_tube('OarNeck', [(tip, 1.0), (tip + Vector((0.01, -0.10, -0.05)), 0.8), (bc + Vector((0, 0, 0.20)), 0.55)], 0.06, M_BODY, res=6))
-    MERGE.append(uvs('Oar', bc, (0.15, 0.04, 0.27), M_BODY, 24, 14, rot=(0.0, -0.18, 0.0)))
-elif K['hook'] == 'brazier':
-    # tall narrow torch-cone flame rising from the top (gel; hot tip via the fire kit's tip glow)
-    b0 = Vector((0.0, 0.04, H - 0.16))
-    CREST_MERGE.append(curve_tube('Torch', [(b0, 1.6), (b0 + Vector((0.0, 0, 0.26)), 1.25), (b0 + Vector((-0.02, 0, 0.55)), 0.85),
-                                             (b0 + Vector((0.02, 0, 0.82)), 0.45), (b0 + Vector((-0.01, 0, 1.02)), 0.16), (b0 + Vector((0.0, 0, 1.12)), 0.02)], 0.15, M_BODY, res=8))
-    for i, (ox, hgt) in enumerate([(0.20, 0.36), (-0.21, 0.32)]):
-        bb = Vector((ox, 0.10, H - 0.20))
-        MERGE.append(curve_tube('Lick%d' % i, [(bb, 1.1), (bb + Vector((ox * 0.3, 0, hgt * 0.5)), 0.6), (bb + Vector((ox * 0.5, 0, hgt)), 0.05)], 0.08, M_BODY, res=5))
-elif K['hook'] == 'skep':
-    pass   # the skep ridges are sculpted into the body above
+if K['hook'] == 'brazier':
+    # Serif Batch A flame: 1.0 H tall, base 0.40 W, belly <= 0.50 W, one tongue per side, S-curl tip leaning right
+    FL = [(0.20, 0.00), (0.24, 0.12), (0.25, 0.28), (0.22, 0.44), (0.17, 0.55), (0.105, 0.635), (0.16, 0.72), (0.19, 0.83),
+          (0.12, 0.775), (0.08, 0.80), (0.065, 0.88), (0.09, 0.95), (0.15, 1.00),
+          (0.08, 0.985), (0.03, 0.95), (0.00, 0.90), (-0.03, 0.82), (-0.07, 0.73), (-0.10, 0.625), (-0.215, 0.70),
+          (-0.16, 0.57), (-0.19, 0.48), (-0.23, 0.36), (-0.25, 0.22), (-0.23, 0.10), (-0.20, 0.00)]
+    z0 = H - 0.20; FH = 1.0 * Hb + 0.20; TH = 0.36
+    bmf = bmesh.new(); vs_ = [bmf.verts.new((fx * W, 0.0, z0 + fz * FH)) for fx, fz in FL]
+    fc = bmf.faces.new(vs_); ex = bmesh.ops.extrude_face_region(bmf, geom=[fc])
+    for v_ in bmf.verts:
+        if v_.co.y == 0.0 and v_ not in vs_: pass
+    new_vs = [e for e in ex['geom'] if isinstance(e, bmesh.types.BMVert)]
+    for v_ in new_vs: v_.co.y = TH
+    for v_ in bmf.verts:
+        fz = (v_.co.z - z0) / FH; v_.co.y = (v_.co.y - TH / 2) * (1 - 0.65 * fz) + 0.04
+    bmesh.ops.recalc_face_normals(bmf, faces=bmf.faces[:])
+    mef = bpy.data.meshes.new('Flame'); bmf.to_mesh(mef); bmf.free()
+    CREST_MERGE.append(link(bpy.data.objects.new('Flame', mef)))
 
 # fuse body + arms + drips + hooks into one watertight gel
 bpy.ops.object.select_all(action='DESELECT')
@@ -211,24 +264,24 @@ def inside_pts(n, rx, zlo, zhi, margin=0.09):
         if pp is None: continue
         if Vector((q.x, q.y, 0)).length < Vector((pp.x, pp.y, 0)).length - margin: out.append(q)
     return out
-core = uvs('GelCore', Vector((0.02, 0.04, H * 0.36)), (P['rx'] * 0.46, P['rx'] * 0.42, H * 0.22), M_CORE, 18, 10); BODYO.append(core)
+core = uvs('GelCore', Vector((0.02, 0.04, hz(0.36))), (P['rx'] * 0.46, P['rx'] * 0.42, (H - BOT) * 0.22), M_CORE, 18, 10); BODYO.append(core)
 if EL == 'water':
     M_BUB = mat('GelBubble', (0.85, 0.97, 1.0), 0.05)
     # gel twist (Pell): a waterline. Lower half crystal clear, upper half full of small suspended bubbles
-    for i, q in enumerate(inside_pts(26, 0.5, H * 0.50, H * 0.80, 0.07)):
+    for i, q in enumerate(inside_pts(26, 0.5, hz(0.50), hz(0.80), 0.07)):
         r_ = rng.uniform(0.012, 0.03); BODYO.append(uvs('InBubble%d' % i, q, (r_, r_, r_), M_BUB, 8, 5))
-    for i, (bx, by, bz, br) in enumerate([(0.62, -0.10, 0.98, 0.05), (-0.66, 0.0, 0.84, 0.035)]):
+    for i, (bx, by, bz, br) in enumerate([(0.62, -0.10, hz(0.80), 0.05), (-0.20, 0.30, hz(0.95), 0.035)]):
         HEAD.append(uvs('Bubble%d' % i, Vector((bx, by, bz)), (br, br, br), M_BUB, 12, 7))
 elif EL == 'fire':
     M_EM = mat('Ember', (1.0, 0.6, 0.15), 0.4, emit=(1.0, 0.5, 0.1))
-    for i, q in enumerate(inside_pts(12, 0.5, 0.10, H * 0.80)):
+    for i, q in enumerate(inside_pts(12, 0.5, hz(0.62), hz(0.85))):
         r_ = rng.uniform(0.014, 0.03); BODYO.append(uvs('Ember%d' % i, q, (r_, r_, r_ * 1.4), M_EM, 7, 4))
 elif EL == 'plant':
     M_SP = mat('Spore', (0.85, 1.0, 0.55), 0.4, emit=(0.6, 0.9, 0.3))
     # gel twist (Comb): a glowing honeycomb panel in the belly, facing the camera behind a clear gel window
     M_COMB = mat('Orn_Comb', (1.0, 0.62, 0.12), 0.35, emit=(1.0, 0.55, 0.06), estr=1.6)
     M_WAX = mat('Orn_Wax', (0.55, 0.30, 0.06), 0.5)
-    cr = 0.062; cz = H * 0.24; cx0 = -0.24     # honeycomb patch on the front-left flank, clear of the mouth
+    cr = 0.062; cz = 0.29; cx0 = -0.24     # honeycomb patch on the front-left flank, clear of the mouth
     pf, nf = surf(Vector((0, -1, 0)), Vector((0, 0, cz)))
     cy_ = pf.y + 0.10
     for row in range(-1, 2):
@@ -236,89 +289,143 @@ elif EL == 'plant':
             dx = (col + (0.5 if row % 2 else 0)) * cr * 1.78; x_ = cx0 + dx; z_ = cz + row * cr * 1.55
             if (dx / 0.20) ** 2 + ((z_ - cz) / 0.15) ** 2 > 1.0: continue
             # each cell sits just under the skin (thin gel over it), facing out along the local normal
-            az = -0.42 + dx / 0.62     # azimuth around the dome, front-left
+            az = -1.0 + dx / 0.62     # azimuth around the dome, front-left
             ps, ns = surf(Vector((math.sin(az), -math.cos(az), 0)), Vector((0, 0, z_)))
             if ps is None: continue
             cc = ps + ns * 0.006     # proud of the skin so the glow reads at fight distance
             q_ = ns.to_track_quat('Z', 'Y').to_euler()
             BODYO.append(cyl('Comb_%d_%d' % (row, col), cc, cr * 0.84, 0.03, M_COMB, verts=6, rot=(q_.x, q_.y, q_.z)))
-    BODYO.append(uvs('CombBack', Vector((math.sin(-0.42) * 0.34, -math.cos(-0.42) * 0.34, cz)), (0.20, 0.04, 0.16), M_WAX, 20, 10))
+    BODYO.append(uvs('CombBack', Vector((math.sin(-1.0) * 0.34, -math.cos(-1.0) * 0.34, cz)), (0.20, 0.04, 0.16), M_WAX, 20, 10))
 # ---------------- ornaments (separate, authored colours) ----------------
+def aim_rot(dv):
+    q_ = dv.normalized().to_track_quat('Z', 'Y').to_euler(); return (q_.x, q_.y, q_.z)
+def ray_down(x, y):
+    hit = bvh.ray_cast(Vector((x, y, 4.0)), Vector((0, 0, -1))); return hit[0], hit[1]
 if K['hook'] == 'canoe':
-    M_WOOD = mat('Orn_Wood', (0.22, 0.10, 0.035), 0.6)
-    M_GUN = mat('Orn_Gunwale', (0.16, 0.07, 0.025), 0.5)
+    M_WOOD = mat('Orn_Wood', (0.24, 0.11, 0.04), 0.6)
+    M_GUN = mat('Orn_Gunwale', (0.13, 0.06, 0.02), 0.5)
     M_STRIPE = mat('Orn_Stripe', (0.95, 0.92, 0.82), 0.5)
-    # wooden canoe the gel sits in: long axis left/right, pointed bow + stern that sweep up, round bottom, gunwale rim
-    L_ = 1.08; NU, NV = 44, 14
-    def cw(u): return max(0.004, 0.74 * (1 - abs(u) ** 1.7) ** 0.85)        # half-width (pointed ends)
-    def ct(u): return 0.30 + 0.30 * abs(u) ** 3.2                            # gunwale height (upswept ends)
-    def cd(u): return 0.29 * (1 - abs(u) ** 2.2) ** 0.55 + 0.015             # depth below gunwale
+    M_PAD = mat('Orn_Paddle', (0.62, 0.40, 0.18), 0.55)
+    M_KELP = mat('Orn_Kelp', (0.16, 0.42, 0.20), 0.6)
+    M_SHELL = mat('Orn_Shell', (0.98, 0.86, 0.78), 0.4)
+    # Serif Batch A canoe: long axis across the screen (face to camera). 2.4 W tip to tip, 0.33 W deep,
+    # flat bottom ~1.4 W, bow + stern tips +0.34 W above the gunwale, rising only in the last 0.35 W.
+    L_ = 1.2 * W; BEAM = 0.42 * W; D_ = 0.33 * W; XF = 0.70 * W; RISE = 0.34 * W; RZ = 0.35 * W
+    NU, NV = 40, 10
+    def cg(ax): return D_ + RISE * max(0.0, (ax - (L_ - RZ)) / RZ) ** 1.8                     # gunwale height
+    def cb(ax): return 0.0 if ax < XF else (D_ + RISE - 0.03) * ((ax - XF) / (L_ - XF)) ** 1.7  # keel (rocker)
+    def cw(ax): return max(0.006, BEAM * max(0.0, 1 - (ax / L_) ** 2.4) ** 0.55)                # half-beam
+    def lean(ax, z): return 0.05 * W * max(0.0, (z - D_) / RISE)                                 # tips lean outward
     bmh = bmesh.new(); grid = []
     for i in range(NU + 1):
-        u = -1 + 2 * i / NU; row = []
+        x = -L_ + 2 * L_ * i / NU; ax = abs(x); sg = 1 if x >= 0 else -1; row = []
         for j in range(NV + 1):
-            th = math.pi * j / NV
-            row.append(bmh.verts.new((u * L_, cw(u) * math.cos(th), ct(u) - cd(u) * math.sin(th) ** 0.6)))
+            th = math.pi * j / NV; zg, zb = cg(ax), cb(ax)
+            z = zg - (zg - zb) * math.sin(th) ** 0.35
+            row.append(bmh.verts.new((x + sg * lean(ax, z), cw(ax) * math.cos(th), z)))
         grid.append(row)
     for i in range(NU):
         for j in range(NV):
             bmh.faces.new((grid[i][j], grid[i + 1][j], grid[i + 1][j + 1], grid[i][j + 1]))
-        bmh.faces.new((grid[i][NV], grid[i + 1][NV], grid[i + 1][0], grid[i][0]))   # deck (hidden under the gel mid-ships)
+        bmh.faces.new((grid[i][NV], grid[i + 1][NV], grid[i + 1][0], grid[i][0]))   # deck (under the gel mid-ships)
+    bmesh.ops.remove_doubles(bmh, verts=bmh.verts[:], dist=0.004)
     bmesh.ops.recalc_face_normals(bmh, faces=bmh.faces[:])
     meh = bpy.data.meshes.new('Canoe'); bmh.to_mesh(meh); bmh.free()
     for p_ in meh.polygons: p_.use_smooth = True
     canoe = link(bpy.data.objects.new('Canoe', meh)); meh.materials.append(M_WOOD); BODYO.append(canoe)
     for sd in (1, -1):
-        pts_ = [(Vector((u * L_, sd * cw(u), ct(u) + 0.01)), 1.0) for u in [-1 + 2 * k / 16 for k in range(17)]]
-        BODYO.append(curve_tube('Gunwale%d' % (sd > 0), pts_, 0.032, M_GUN, res=4, bres=2))
-        # pale paint stripe along each flank so the hull shape reads at fight distance
-        st_ = [(Vector((u * L_, sd * cw(u) * 1.01, ct(u) - cd(u) * 0.35)), 1.0) for u in [-0.9 + 1.8 * k / 14 for k in range(15)]]
-        BODYO.append(curve_tube('Stripe%d' % (sd > 0), st_, 0.018, M_STRIPE, res=4, bres=1))
-    for sd in (1, -1):   # bow + stern posts
-        BODYO.append(uvs('Post%d' % (sd > 0), Vector((sd * L_ * 1.0, 0, ct(1.0) + 0.02)), (0.04, 0.035, 0.05), M_GUN, 10, 6))
+        us = [-0.97 + 1.94 * k / 16 for k in range(17)]
+        pts_ = [(Vector((u * L_ + (1 if u >= 0 else -1) * lean(abs(u) * L_, cg(abs(u) * L_)), sd * cw(abs(u) * L_), cg(abs(u) * L_) + 0.012)), 1.0) for u in us]
+        BODYO.append(curve_tube('Gunwale%d' % (sd > 0), pts_, 0.034, M_GUN, res=3, bres=1))
+        st_ = []
+        for u in [-0.85 + 1.7 * k / 12 for k in range(13)]:
+            ax = abs(u) * L_; zs = cg(ax) - (cg(ax) - cb(ax)) * 0.30
+            st_.append((Vector((u * L_, sd * cw(ax) * 0.99, zs)), 1.0))
+        BODYO.append(curve_tube('Stripe%d' % (sd > 0), st_, 0.02, M_STRIPE, res=2, bres=1))
+    # paddle: straight shaft from the hand, canoe-paddle blade 0.50 W x 1.05 H, 22 deg off vertical, leaning out
+    hand = ARM_PTS['R'][3]; ang = math.radians(22); dvec = Vector((-math.sin(ang), 0, math.cos(ang)))
+    SH_L = 0.42 * W; SH_R = 0.045 * W; BW = 0.50 * W; BL = 1.05 * Hb; BT = 0.05 * W
+    ARMR.append(cyl('PaddleShaft', hand + dvec * (SH_L / 2 - 0.04), SH_R, SH_L + 0.14, M_PAD, verts=10, rot=aim_rot(dvec)))
+    out = []
+    NB = 24
+    for k in range(NB + 1):
+        sl = BL * k / NB
+        if sl < 0.14 * BL: hw = SH_R + (BW / 2 - SH_R) * smooth(0, 1, sl / (0.14 * BL))
+        elif sl < BL - BW / 2: hw = BW / 2 * (1 - 0.05 * sl / BL)
+        else:
+            u_ = (sl - (BL - BW / 2)) / (BW / 2); hw = BW / 2 * (1 - 0.05) * math.sqrt(max(0.0, 1 - u_ * u_))
+        out.append((hw, sl))
+    ring = [(hw, sl) for hw, sl in out] + [(-hw, sl) for hw, sl in reversed(out)]
+    bmp = bmesh.new(); vv = []
+    seen = set()
+    for hw, sl in ring:
+        key = (round(hw, 5), round(sl, 5))
+        if key in seen: continue
+        seen.add(key); vv.append(bmp.verts.new((hw, -BT / 2, sl)))
+    fp = bmp.faces.new(vv); exr = bmesh.ops.extrude_face_region(bmp, geom=[fp])
+    for e in exr['geom']:
+        if isinstance(e, bmesh.types.BMVert): e.co.y += BT
+    bmesh.ops.recalc_face_normals(bmp, faces=bmp.faces[:])
+    mep = bpy.data.meshes.new('PaddleBlade'); bmp.to_mesh(mep); bmp.free()
+    blade = link(bpy.data.objects.new('PaddleBlade', mep)); mep.materials.append(M_PAD)
+    blade.location = hand + dvec * SH_L; blade.rotation_euler = (0, -ang, 0); ARMR.append(blade)
+    # small ornaments inside the silhouette: kelp-rope sash low across the front, shell charm on its knot
+    kp = []
+    for k in range(9):
+        a_ = FRONT + (-0.9 + 1.8 * k / 8); ps, ns = surf(Vector((math.cos(a_), math.sin(a_), 0)), Vector((0, 0, D_ + 0.11 + 0.03 * abs(k - 4) / 4)))
+        if ps is not None: kp.append((ps + ns * 0.012, 1.0))
+    BODYO.append(curve_tube('KelpSash', kp, 0.026, M_KELP, res=3, bres=1))
+    ps, ns = surf(Vector((0.25, -1, 0)), Vector((0, 0, D_ + 0.08)))
+    BODYO.append(uvs('ShellCharm', ps + ns * 0.03, (0.045, 0.02, 0.04), M_SHELL, 8, 6, rot=(0, 0, math.atan2(ns.x, -ns.y))))
 elif K['hook'] == 'brazier':
-    M_IRON = mat('Orn_Iron', (0.16, 0.14, 0.13), 0.5, metal=0.75)
+    M_IRON = mat('Orn_Iron', (0.14, 0.12, 0.11), 0.5, metal=0.75)
+    M_COAL = mat('Orn_Coal', (0.07, 0.035, 0.025), 0.8, emit=(0.9, 0.22, 0.04), estr=0.35)
     M_RAG = mat('Orn_Rag', (1.0, 0.10, 0.05), 0.7, emit=(1.0, 0.08, 0.02), estr=0.35)
-    # soot-black iron brazier bowl ringing the upper body, below the eyes; four short decorative legs
-    zb = H * 0.15; zt = H * 0.40
-    pr0, _ = surf(Vector((1, 0, 0)), Vector((0, 0, zb))); pr1, _ = surf(Vector((1, 0, 0)), Vector((0, 0, zt)))
-    r0 = abs(pr0.x) + 0.03; r1 = abs(pr1.x) + 0.05
-    prof = [(r0, zb), (r0 + 0.05, zb + 0.02), ((r0 + r1) / 2 + 0.09, (zb + zt) / 2), (r1 + 0.09, zt - 0.03), (r1 + 0.13, zt - 0.01), (r1 + 0.13, zt + 0.035), (r1 + 0.02, zt + 0.03),
-            ((r0 + r1) / 2 + 0.02, (zb + zt) / 2), (r0 - 0.01, zb + 0.01), (r0, zb)]
-    bowl = lathe('Brazier', prof, M_IRON, seg=44); BODYO.append(bowl)
+    # Serif Batch A pot: ONE crisp flat lip at 60% H, dia 1.55 W, 0.07 W thick, hard corners; deep bowl 0.62 W, rounded bottom
+    RO = 0.775 * W; RB = 0.72 * W; DP = 0.62 * W; LT = 0.07 * W; RI = 0.66 * W
+    prof = [(0.002, RIMZ - DP)]
+    for k in range(1, 10):
+        d_ = DP * (1 - k / 9); prof.append((RB * math.sqrt(max(0.0, 1 - (d_ / DP) ** 2)) if k < 9 else RB, RIMZ - LT - d_ * (DP - LT) / DP))
+    prof += [(RO - 0.006, RIMZ - LT), (RO, RIMZ - LT + 0.006), (RO, RIMZ - 0.006), (RO - 0.006, RIMZ), (RI + 0.006, RIMZ), (RI, RIMZ - 0.006), (RI, RIMZ - 0.075)]
+    bowl = lathe('Brazier', prof, M_IRON, seg=36); BODYO.append(bowl)
+    BODYO.append(lathe('Coals', [(RI + 0.004, RIMZ - 0.07), (0.62 * RI, RIMZ - 0.055), (0.30 * W, RIMZ - 0.05)], M_COAL, seg=24))
+    # four stubby legs 0.10 W thick, ball feet r 0.06 W, 0.41 W from center, ring turned 20 deg so all four show
+    rb = 0.06 * W
     for i in range(4):
-        ag = math.radians(45 + 90 * i); rr = (r0 + r1) / 2 + 0.06
-        c = Vector((math.cos(ag) * rr, math.sin(ag) * rr, zb - 0.02))
-        BODYO.append(cyl('BrazLeg%d' % i, c, 0.034, 0.14, M_IRON, verts=8, r2=0.012, rot=(math.sin(ag) * 0.35, -math.cos(ag) * 0.35, 0)))
-        BODYO.append(uvs('Rivet%d' % i, Vector((math.cos(ag + 0.78) * (r1 + 0.06), math.sin(ag + 0.78) * (r1 + 0.06), zt - 0.03)), (0.026, 0.026, 0.026), M_IRON, 8, 5))
-    # knotted signal rag on the left arm
-    ap = ARM_PTS['L'][2]
-    ARML.append(lathe('RagBand', [(0.098, -0.06), (0.114, 0.0), (0.098, 0.06)], M_RAG, seg=18, loc=tuple(ap)))
-    ARML[-1].rotation_euler = (0, math.radians(68), 0)
-    ARML.append(uvs('RagKnot', ap + Vector((0.0, -0.105, 0.02)), (0.05, 0.04, 0.05), M_RAG, 10, 6))
-    for j, (dx, dz) in enumerate([(0.05, -0.15), (-0.04, -0.13)]):
-        ARML.append(uvs('RagTail%d' % j, ap + Vector((dx, -0.12, dz)), (0.035, 0.012, 0.11), M_RAG, 10, 6, rot=(0.2, 0.3 * (1 - 2 * j), 0)))
+        ag = math.radians(45 + 90 * i + 20); cs, sn = math.cos(ag), math.sin(ag)
+        top = Vector((cs * 0.36 * W, sn * 0.36 * W, RIMZ - 0.537 * W + 0.05)); foot = Vector((cs * 0.41 * W, sn * 0.41 * W, rb))
+        dv = top - foot
+        BODYO.append(cyl('BrazLeg%d' % i, (top + foot) / 2, 0.05 * W, dv.length, M_IRON, verts=10, rot=aim_rot(dv)))
+        BODYO.append(uvs('BrazFoot%d' % i, foot, (rb, rb, rb), M_IRON, 10, 6))
+    for i, azd in enumerate((-125, -95, -85, -55)):
+        ag = math.radians(azd); zr = RIMZ - 0.20; rr = RB * math.sqrt(max(0.0, 1 - ((0.20 - LT) / DP) ** 2)) + 0.004
+        BODYO.append(uvs('Rivet%d' % i, Vector((math.cos(ag) * rr, math.sin(ag) * rr, zr)), (0.028, 0.028, 0.028), M_IRON, 6, 4))
+    # signal rag knotted on the left nub, two short tails hanging down the bowl front inside its outline
+    a2, a3 = ARM_PTS['L'][2], ARM_PTS['L'][3]
+    band = lathe('RagBand', [(0.100, -0.055), (0.116, 0.0), (0.100, 0.055)], M_RAG, seg=18, loc=tuple((a2 + a3) / 2)); band.rotation_euler = aim_rot(a3 - a2); ARML.append(band)
+    ARML.append(uvs('RagKnot', Vector((0.78, -0.62, RIMZ + 0.06)), (0.06, 0.05, 0.05), M_RAG, 10, 6))
+    ARML.append(uvs('RagDrape', Vector((0.76, -0.80, RIMZ + 0.02)), (0.055, 0.05, 0.035), M_RAG, 10, 6))
+    for j, (x_, y_, dz, tw) in enumerate([(0.70, -0.87, -0.15, 0.2), (0.83, -0.80, -0.12, -0.25)]):
+        ag = math.atan2(y_, x_)
+        ARML.append(uvs('RagTail%d' % j, Vector((x_, y_, RIMZ + dz)), (0.05, 0.016, 0.13), M_RAG, 10, 6, rot=(0.0, tw, ag + math.pi / 2)))
 elif K['hook'] == 'skep':
-    M_STRAW = mat('Orn_Straw', (0.86, 0.66, 0.30), 0.7)
-    M_BEE = mat('Orn_Bee', (1.0, 0.78, 0.10), 0.45, emit=(1.0, 0.6, 0.0), estr=0.25)
-    M_BSTR = mat('Orn_BeeStripe', (0.05, 0.04, 0.03), 0.5)
-    M_WING = mat('Orn_Wing', (0.92, 0.97, 1.0), 0.2, emit=(0.8, 0.9, 1.0), estr=0.3)
-    # straw knob at the crown of the skep
-    HEAD.append(uvs('SkepKnob', Vector((0.0, 0.0, HT + 0.02)), (0.09, 0.09, 0.06), M_STRAW, 14, 8))
-    # three chunky cartoon bees on the orbit bone
-    for i in range(3):
-        ag = 2 * math.pi * i / 3 + 0.5; rr = P['rx'] + 0.30; c = Vector((math.cos(ag) * rr, math.sin(ag) * rr, H * (0.62 + 0.14 * (i - 1))))
-        yaw_ = ag + math.pi / 2
-        ORBIT.append(uvs('Bee%d' % i, c, (0.075, 0.05, 0.05), M_BEE, 12, 8, rot=(0, 0, yaw_)))
-        for k in (-1, 1):
-            ORBIT.append(uvs('BeeBand%d_%d' % (i, k), c + Vector((math.cos(yaw_) * 0.025 * k, math.sin(yaw_) * 0.025 * k, 0)), (0.014, 0.053, 0.053), M_BSTR, 10, 6, rot=(0, 0, yaw_)))
-        for k in (-1, 1):
-            ORBIT.append(uvs('BeeWing%d_%d' % (i, k), c + Vector((-math.sin(yaw_) * 0.04 * k, math.cos(yaw_) * 0.04 * k, 0.05)), (0.035, 0.05, 0.008), M_WING, 10, 5, rot=(0.5 * k, 0, yaw_)))
+    M_CLOVER = mat('Orn_Clover', (1.0, 0.86, 0.93), 0.5)
+    M_DOOR = mat('Orn_Door', (0.03, 0.025, 0.02), 0.9)
+    SK_W = 1.18 * 1.20
+    # dark inside the entrance arch
+    aw = 0.11 * SK_W; ah = 0.16 * SK_W
+    pd, nd = surf(Vector((0, -1, 0)), Vector((0, 0, 0.02 + ah * 0.45)))
+    BODYO.append(uvs('DoorDark', Vector((0, pd.y + 0.012, 0.03 + ah * 0.48)), (aw * 0.92, 0.03, ah * 0.48), M_DOOR, 12, 7))
+    # clover crown: 5 blossom bumps (r 0.04-0.06 W) on the dome top, so they break the outline
+    for i in range(5):
+        ag = 2 * math.pi * i / 5 + 0.3; rr = 0.20 * SK_W * (0.55 if i % 2 else 1.0)
+        ph, nh = ray_down(math.cos(ag) * rr, math.sin(ag) * rr); r_ = SK_W * (0.04 + 0.01 * (i % 3))
+        HEAD.append(uvs('Clover%d' % i, ph + nh * r_ * 0.55, (r_, r_, r_ * 0.8), M_CLOVER, 10, 6))
     M_MOTE = mat('Spore', (1.0, 0.92, 0.45), 0.4, emit=(1.0, 0.8, 0.3))
-    # glowing pollen motes orbiting like bees (orbit bone spins them)
-    for i in range(3):
-        ag = 2 * math.pi * i / 3 + 1.55; rr = P['rx'] + 0.24 + 0.05 * (i % 2)
-        ORBIT.append(uvs('Mote%d' % i, Vector((math.cos(ag) * rr, math.sin(ag) * rr, H * (0.55 + 0.12 * math.sin(ag * 2)))), (0.028, 0.028, 0.028), M_MOTE, 10, 6))
+    # 4 free pollen motes (r 0.035-0.045 W) orbiting ~0.8 W from center
+    for i, (azd, zf, rf) in enumerate([(200, 0.62, 0.040), (340, 0.85, 0.036), (20, 0.40, 0.044), (160, 0.28, 0.038)]):
+        ag = math.radians(azd); rr = 0.8 * SK_W; r_ = rf * SK_W
+        ORBIT.append(uvs('Mote%d' % i, Vector((math.cos(ag) * rr, math.sin(ag) * rr, H * zf)), (r_, r_, r_), M_MOTE, 10, 6))
 if EL == 'water' and K.get('crest') == 'water':
     pass
 # ---------------- apply transforms ----------------
@@ -350,14 +457,13 @@ def body_w(co):
     z = co.z / H
     wh = smooth(0.48, 0.82, z); wr = 1 - smooth(0.05, 0.30, z); wb = max(0, 1 - wh - wr)
     w = {'root': wr, 'body': wb, 'head': wh}
-    if K['hook'] == 'brazier' and co.z > H - 0.06 and abs(co.x) < 0.16:
+    if K['hook'] == 'brazier' and co.z > H - 0.06 and abs(co.x) < 0.45:
         wc = smooth(H - 0.06, H + 0.10, co.z); w = {k: v * (1 - wc) for k, v in w.items()}; w['crest'] = wc
     for side, s in (('L', 1), ('R', -1)):
         pts = ARM_PTS[side]
         if co.x * s < 0.30: continue
         dd, t = seg_d(co, pts[0], pts[3] + (pts[3] - pts[2]) * 0.8)
         ga = smooth(0.30, 0.46, co.x * s) * math.exp(-(dd / 0.22) ** 2)
-        if K['hook'] == 'canoe' and side == 'R' and co.z < 0.36 and co.x * s > 0.72: ga = max(ga, smooth(0.72, 0.82, co.x * s))
         if ga > 0.01:
             w = {k: v * (1 - ga) for k, v in w.items()}; w['arm.' + side] = ga
     tot = sum(w.values()); return {k: v / tot for k, v in w.items()}
@@ -390,15 +496,15 @@ S = lambda sx, sy, sz: (sx, sy, sz)
 ORB = [(f, 'orbit', 'rotation_euler', (0, 2 * math.pi * f / 90.0, 0)) for f in range(0, 91, 10)] if ORBIT else []
 if K['hook'] == 'canoe':
     # slow rowing stroke with the oar arm; body rocks fore and aft on the stroke (90f)
-    idle = [(0, 'arm.R', 'rotation_euler', (-0.55, 0, 0.10)), (30, 'arm.R', 'rotation_euler', (0.75, 0, -0.25)), (55, 'arm.R', 'rotation_euler', (0.35, 0, 0.35)),
-            (0, 'body', 'rotation_euler', (-0.05, 0, 0)), (30, 'body', 'rotation_euler', (0.10, 0, 0)), (60, 'body', 'rotation_euler', (-0.02, 0, 0)),
+    idle = [(0, 'arm.R', 'rotation_euler', (-0.12, 0, 0.03)), (30, 'arm.R', 'rotation_euler', (0.22, 0, -0.06)), (55, 'arm.R', 'rotation_euler', (0.08, 0, 0.06)),
+            (0, 'body', 'rotation_euler', (-0.05, 0, 0)), (30, 'body', 'rotation_euler', (0.07, 0, 0)), (60, 'body', 'rotation_euler', (-0.02, 0, 0)),
             (15, 'root', 'scale', S(1.03, 0.96, 1.03)), (60, 'root', 'scale', S(0.99, 1.02, 0.99)),
             (20, 'arm.L', 'rotation_euler', (0, 0, 0.10)), (65, 'arm.L', 'rotation_euler', (0, 0, -0.06))]; IDLE_N = 90
 elif K['hook'] == 'brazier':
     # proud breathing, then a SHOUT: torch cone flares taller, arms thrown wide (90f)
     idle = [(0, 'root', 'scale', S(1, 1, 1)), (20, 'root', 'scale', S(1.03, 0.96, 1.03)), (40, 'root', 'scale', S(1.0, 1.0, 1.0)),
-            (52, 'root', 'scale', S(0.92, 1.12, 0.92)), (52, 'crest', 'scale', S(1.12, 1.55, 1.12)), (52, 'arm.L', 'rotation_euler', (0, 0, 0.85)), (52, 'arm.R', 'rotation_euler', (0, 0, -0.85)),
-            (52, 'head', 'rotation_euler', (-0.16, 0, 0)), (64, 'crest', 'scale', S(1.0, 1.25, 1.0)), (72, 'root', 'scale', S(1.02, 0.98, 1.02)),
+            (52, 'root', 'scale', S(0.98, 1.04, 0.98)), (52, 'crest', 'scale', S(1.04, 1.12, 1.04)), (52, 'arm.L', 'rotation_euler', (0, 0, 0.85)), (52, 'arm.R', 'rotation_euler', (0, 0, -0.85)),
+            (52, 'head', 'rotation_euler', (-0.16, 0, 0)), (64, 'crest', 'scale', S(1.0, 1.06, 1.0)), (72, 'root', 'scale', S(1.02, 0.98, 1.02)),
             (80, 'crest', 'scale', S(1, 1, 1)), (80, 'arm.L', 'rotation_euler', (0, 0, 0.05)), (80, 'arm.R', 'rotation_euler', (0, 0, -0.05)), (80, 'head', 'rotation_euler', (0.02, 0, 0))]; IDLE_N = 90
 else:
     # gentle humming sway; motes circle (90f)
