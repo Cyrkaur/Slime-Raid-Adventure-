@@ -287,23 +287,25 @@ import * as SkeletonUtils from '../../vendor/three-addons-g/utils/SkeletonUtils.
    */
   // Live hero figures (read-only handle for capture/QA tools).
   var live = [];
-  // ---- v3 eyes: modeled eyeball + iris texture (radial detail, element tint, pupil), transmissive cornea,
-  //      two catchlights, gel lids + lash line, refracting gel lip, soft contact shadow. Expressive + gaze. ----
-  var EYE_DEF = { eyeIris: 0x3fd0b0, eyeIris2: 0x0e5a48, eyeGlow: 0.0, eyePupil: 'round', eyeFrost: 0, eyeSclera: 0xf3f8ff };
+  // ---- v4 eyes (founder eye rules, Sep 28): stylized eyes suspended INSIDE the gel just under the surface.
+  //      Big dark pupils + 1-2 catchlights, no realistic irises. They lag + wobble behind the squash/stretch.
+  //      Element flavor in the details; evolution reads through the eyes (base / mid / top). ----
+  var EYE_DEF = { eyeIris: 0x3fd0b0, eyeIris2: 0x0e5a48, eyeGlow: 0.0, eyePupil: 'round', eyeFrost: 0, eyeSclera: 0xf6f9ff,
+    eyeShine: 0xffffff, eyeMetal: 0, eyeMag: 1.0, eyeSink: 0.55, eyeLag: 0.75 };
   var EYE_PROPS = {
-    water:  { eyeIris: 0x46c8ff, eyeIris2: 0x0b3f9a },
-    fire:   { eyeIris: 0xffd24a, eyeIris2: 0xc2360a, eyeGlow: 0.55, eyeSclera: 0xfff4e8 },
-    plant:  { eyeIris: 0xb4ec52, eyeIris2: 0x2a6e16, eyeSclera: 0xf6ffee },
-    lava:   { eyeIris: 0xffc030, eyeIris2: 0xa01c00, eyeGlow: 1.4, eyeSclera: 0xffe6c8 },
-    ice:    { eyeIris: 0xd4f8ff, eyeIris2: 0x2a78b4, eyeFrost: 1.0 },
-    metal:  { eyeIris: 0xdce4ec, eyeIris2: 0x46505c },
+    water:  { eyeIris: 0x46c8ff, eyeIris2: 0x0b3f9a, eyeMag: 1.14, eyeLag: 0.95 },      // magnified through clear gel, loosest
+    fire:   { eyeIris: 0xffb43a, eyeIris2: 0xc2360a, eyeGlow: 0.5, eyeSclera: 0xfff4e8 }, // ember glow in the pupil rim
+    plant:  { eyeIris: 0xb4ec52, eyeIris2: 0x2a6e16, eyeSclera: 0xf6ffee, eyeLag: 0.6, eyeMag: 1.15 },
+    lava:   { eyeIris: 0xffa020, eyeIris2: 0xa01c00, eyeGlow: 1.5, eyeSclera: 0xffe6c8, eyeLag: 0.4 },
+    ice:    { eyeIris: 0xd4f8ff, eyeIris2: 0x2a78b4, eyeFrost: 1.0, eyeLag: 0.35 },
+    metal:  { eyeIris: 0xdce4ec, eyeIris2: 0x46505c, eyeMetal: 1.0, eyeSclera: 0xb8c2cc, eyeLag: 0.3 }, // polished bead
     poison: { eyeIris: 0xd0ff50, eyeIris2: 0x5a1a8a, eyeGlow: 0.4 },
     shadow: { eyeIris: 0xd090ff, eyeIris2: 0x2a0a50, eyeGlow: 0.5, eyePupil: 'slit', eyeSclera: 0xe6dcff },
     void:   { eyeIris: 0xe070ff, eyeIris2: 0x180030, eyeGlow: 0.7, eyePupil: 'slit', eyeSclera: 0xdcd0f0 },
     crystal:{ eyeIris: 0xf8c8ff, eyeIris2: 0x8a3ac0 },
-    light:  { eyeIris: 0xfff0a0, eyeIris2: 0xc08a10, eyeGlow: 0.5 },
+    light:  { eyeIris: 0xffe28a, eyeIris2: 0xc08a10, eyeGlow: 0.5, eyeShine: 0xfff0c0, eyeSclera: 0xfffaf0 }, // white-gold
     lightning: { eyeIris: 0xfff870, eyeIris2: 0xb08a00, eyeGlow: 0.6, eyePupil: 'slit' },
-    earth:  { eyeIris: 0xd8a860, eyeIris2: 0x5a3414 },
+    earth:  { eyeIris: 0xd8a860, eyeIris2: 0x5a3414, eyeLag: 0.4 },
     spirit: { eyeIris: 0xc8f4ff, eyeIris2: 0x4a8ac8, eyeGlow: 0.35 },
     storm:  { eyeIris: 0xa8c8ff, eyeIris2: 0x1e3a8a, eyeGlow: 0.25 },
     wind:   { eyeIris: 0xc8fff0, eyeIris2: 0x2a8a70 }
@@ -311,49 +313,93 @@ import * as SkeletonUtils from '../../vendor/three-addons-g/utils/SkeletonUtils.
   Object.keys(EYE_PROPS).forEach(function (k) { if (PROPS[k]) { var e = EYE_PROPS[k], j; for (j in e) PROPS[k][j] = e[j]; } });
   for (var _ek in EYE_DEF) BASE_PROPS[_ek] = EYE_DEF[_ek];
 
-  var _eyeTex = Object.create(null), _eyeGeo = Object.create(null);
-  function hexCss(h, mul) {
-    var c = new THREE.Color(h); if (mul != null) c.multiplyScalar(mul);
-    return 'rgb(' + Math.round(Math.min(1, c.r) * 255) + ',' + Math.round(Math.min(1, c.g) * 255) + ',' + Math.round(Math.min(1, c.b) * 255) + ')';
+  // Evolution tier for the eyes: base = big round baby eyes; mid = defined shape + gel brow;
+  // top (or fusion) = glowing irises + runes. u/l = resting lid edges for that tier.
+  var EYE_TIERS = {
+    base: { u: 0.90, l: -0.97, brow: false, runes: false, iris: false },
+    mid:  { u: 0.66, l: -0.80, brow: true,  runes: false, iris: false },
+    top:  { u: 0.70, l: -0.84, brow: true,  runes: true,  iris: true }
+  };
+  function eyeTierFor(unit, opts) {
+    if (opts && EYE_TIERS[opts.eyeTier]) return opts.eyeTier;
+    if (!unit) return 'base';
+    if (unit.isFusion || unit.fusion) return 'top';
+    var evo = unit.purpleStars != null ? unit.purpleStars : (unit.evolutionLevel || 0);
+    evo = Math.max(0, Number(evo) || 0);
+    return evo >= 3 ? 'top' : (evo >= 1 ? 'mid' : 'base');
   }
-  function eyeTextures(pr) {
-    var key = [pr.eyeIris, pr.eyeIris2, pr.eyePupil, pr.eyeSclera].join('|');
+
+  var _eyeTex = Object.create(null), _eyeGeo = Object.create(null);
+  function hexCss(h, mul, a) {
+    var c = new THREE.Color(h); if (mul != null) c.multiplyScalar(mul);
+    var s = Math.round(Math.min(1, c.r) * 255) + ',' + Math.round(Math.min(1, c.g) * 255) + ',' + Math.round(Math.min(1, c.b) * 255);
+    return a != null ? 'rgba(' + s + ',' + a + ')' : 'rgb(' + s + ')';
+  }
+  // Stylized eye textures (planar front UV, radius 0.5 = ball edge). kind 'baby': big dark pupil with an element-tinted
+  // rim + soft lower glow; kind 'glow': top-tier glowing iris ring around a big pupil. Each has a matching glow map.
+  function eyeTextures(pr, kind) {
+    var key = [kind, pr.eyeIris, pr.eyeIris2, pr.eyePupil, pr.eyeSclera].join('|');
     if (_eyeTex[key]) return _eyeTex[key];
-    var N = 256, R = N * 0.42, P = N * 0.19, cx = N / 2;
+    var N = 256, cx = N / 2, R = N * 0.40;
     function mk() { var c = document.createElement('canvas'); c.width = c.height = N; return c; }
-    var seed = 7; function rnd() { seed = (seed * 16807) % 2147483647; return seed / 2147483647; }
-    var cA = mk(), g = cA.getContext('2d');
-    // sclera with soft edge shading (the ball edge is uv radius 0.5)
-    var sg = g.createRadialGradient(cx, cx, N * 0.2, cx, cx, N * 0.5);
-    sg.addColorStop(0, hexCss(pr.eyeSclera)); sg.addColorStop(0.75, hexCss(pr.eyeSclera, 0.9)); sg.addColorStop(1, hexCss(pr.eyeSclera, 0.62));
-    g.fillStyle = sg; g.fillRect(0, 0, N, N);
-    function iris(ctx, glow) {
-      var ig = ctx.createRadialGradient(cx, cx - R * 0.08, P * 0.6, cx, cx, R);
-      ig.addColorStop(0, glow ? '#ffffff' : hexCss(pr.eyeIris, 1.15)); ig.addColorStop(0.45, glow ? '#c8c8c8' : hexCss(pr.eyeIris));
-      ig.addColorStop(0.85, glow ? '#606060' : hexCss(pr.eyeIris2)); ig.addColorStop(1, glow ? '#101010' : hexCss(pr.eyeIris2, 0.45));
-      ctx.fillStyle = ig; ctx.beginPath(); ctx.arc(cx, cx, R, 0, Math.PI * 2); ctx.fill();
-      if (glow) return;
-      // radial fibres
-      for (var i = 0; i < 90; i++) {
-        var a = rnd() * Math.PI * 2, r0 = P * (1.0 + rnd() * 0.3), r1 = R * (0.6 + rnd() * 0.38);
-        ctx.strokeStyle = rnd() < 0.5 ? 'rgba(255,255,255,' + (0.08 + rnd() * 0.18) + ')' : 'rgba(0,0,0,' + (0.08 + rnd() * 0.16) + ')';
-        ctx.lineWidth = 0.8 + rnd() * 1.6; ctx.beginPath();
-        ctx.moveTo(cx + Math.cos(a) * r0, cx + Math.sin(a) * r0); ctx.lineTo(cx + Math.cos(a + (rnd() - 0.5) * 0.12) * r1, cx + Math.sin(a) * r1); ctx.stroke();
-      }
-      // collarette ring + limbal ring
-      ctx.strokeStyle = 'rgba(255,255,255,0.22)'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(cx, cx, P * 1.55, 0, Math.PI * 2); ctx.stroke();
-      ctx.strokeStyle = hexCss(pr.eyeIris2, 0.14); ctx.lineWidth = N * 0.05; ctx.beginPath(); ctx.arc(cx, cx, R - N * 0.022, 0, Math.PI * 2); ctx.stroke();
+    var cA = mk(), g = cA.getContext('2d'), cG = mk(), gg = cG.getContext('2d');
+    var sg = g.createRadialGradient(cx, cx, N * 0.25, cx, cx, N * 0.5);
+    sg.addColorStop(0, hexCss(pr.eyeSclera)); sg.addColorStop(0.8, hexCss(pr.eyeSclera, 0.93)); sg.addColorStop(1, hexCss(pr.eyeSclera, 0.7));
+    g.fillStyle = sg; g.fillRect(0, 0, N, N); gg.fillStyle = '#000'; gg.fillRect(0, 0, N, N);
+    function disc(ctx, r, fill) { ctx.fillStyle = fill; ctx.beginPath(); ctx.arc(cx, cx, r, 0, Math.PI * 2); ctx.fill(); }
+    var slit = pr.eyePupil === 'slit';
+    if (kind === 'glow') {
+      // glowing iris ring (flat, stylized) + big dark pupil
+      var ig = g.createRadialGradient(cx, cx, R * 0.5, cx, cx, R);
+      ig.addColorStop(0, hexCss(pr.eyeIris, 1.2)); ig.addColorStop(0.7, hexCss(pr.eyeIris)); ig.addColorStop(1, hexCss(pr.eyeIris2));
+      disc(g, R, ig);
+      var gl = gg.createRadialGradient(cx, cx, R * 0.5, cx, cx, R);
+      gl.addColorStop(0, '#ffffff'); gl.addColorStop(0.8, '#bbbbbb'); gl.addColorStop(1, '#303030'); disc(gg, R, gl);
+      g.fillStyle = gg.fillStyle = '#000'; g.fillStyle = '#05060c';
+      if (slit) { g.beginPath(); g.ellipse(cx, cx, R * 0.16, R * 0.86, 0, 0, Math.PI * 2); g.fill(); gg.beginPath(); gg.ellipse(cx, cx, R * 0.16, R * 0.86, 0, 0, Math.PI * 2); gg.fill(); }
+      else { disc(g, R * 0.56, '#05060c'); disc(gg, R * 0.56, '#000'); }
+    } else if (slit) {
+      // slit pupil on a flat element-colored field (stylized, no fibres)
+      var fg = g.createRadialGradient(cx, cx - R * 0.2, R * 0.2, cx, cx, R);
+      fg.addColorStop(0, hexCss(pr.eyeIris, 1.1)); fg.addColorStop(1, hexCss(pr.eyeIris2)); disc(g, R, fg);
+      g.fillStyle = '#05060c'; g.beginPath(); g.ellipse(cx, cx, R * 0.2, R * 0.9, 0, 0, Math.PI * 2); g.fill();
+      var sgl = gg.createRadialGradient(cx, cx, R * 0.3, cx, cx, R); sgl.addColorStop(0, '#888'); sgl.addColorStop(1, '#222'); disc(gg, R, sgl);
+      gg.fillStyle = '#000'; gg.beginPath(); gg.ellipse(cx, cx, R * 0.2, R * 0.9, 0, 0, Math.PI * 2); gg.fill();
+    } else {
+      // big round baby pupil: near-black, element-tinted rim, soft lower glow crescent
+      var pg = g.createRadialGradient(cx, cx - R * 0.15, R * 0.2, cx, cx, R);
+      pg.addColorStop(0, '#07080f'); pg.addColorStop(0.72, '#0a0c16'); pg.addColorStop(0.93, hexCss(pr.eyeIris2, 0.8)); pg.addColorStop(1, hexCss(pr.eyeIris2, 0.5));
+      disc(g, R, pg);
+      var cr = g.createRadialGradient(cx, cx + R * 0.55, R * 0.05, cx, cx + R * 0.55, R * 0.62);
+      cr.addColorStop(0, hexCss(pr.eyeIris, 1, 0.75)); cr.addColorStop(1, hexCss(pr.eyeIris, 1, 0));
+      g.save(); g.beginPath(); g.arc(cx, cx, R * 0.96, 0, Math.PI * 2); g.clip(); g.fillStyle = cr; g.fillRect(0, 0, N, N); g.restore();
+      // glow map: rim + crescent (drives ember glow for fire / lava)
+      var gr = gg.createRadialGradient(cx, cx, R * 0.78, cx, cx, R); gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(0.7, '#aaaaaa'); gr.addColorStop(1, '#333333');
+      disc(gg, R, gr);
+      var cg2 = gg.createRadialGradient(cx, cx + R * 0.55, R * 0.05, cx, cx + R * 0.55, R * 0.6); cg2.addColorStop(0, '#ffffff'); cg2.addColorStop(1, 'rgba(0,0,0,0)');
+      gg.save(); gg.beginPath(); gg.arc(cx, cx, R * 0.96, 0, Math.PI * 2); gg.clip(); gg.fillStyle = cg2; gg.fillRect(0, 0, N, N); gg.restore();
     }
-    function pupil(ctx, col) {
-      ctx.fillStyle = col; ctx.beginPath();
-      if (pr.eyePupil === 'slit') ctx.ellipse(cx, cx, P * 0.34, R * 0.86, 0, 0, Math.PI * 2);
-      else ctx.arc(cx, cx, P, 0, Math.PI * 2);
-      ctx.fill();
+    function tex(c) { var t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; t.anisotropy = 4; return t; }
+    return (_eyeTex[key] = { map: tex(cA), glow: tex(cG) });
+  }
+  var _runeTex = null;
+  function runeTex() {
+    if (_runeTex) return _runeTex;
+    var N = 256, c = document.createElement('canvas'); c.width = c.height = N; var g = c.getContext('2d'), cx = N / 2;
+    var seed = 11; function rnd() { seed = (seed * 16807) % 2147483647; return seed / 2147483647; }
+    g.strokeStyle = '#ffffff'; g.lineCap = 'round'; g.lineWidth = N * 0.03;
+    g.beginPath(); g.arc(cx, cx, N * 0.47, 0, Math.PI * 2); g.stroke();
+    g.lineWidth = N * 0.022; g.beginPath(); g.arc(cx, cx, N * 0.33, 0, Math.PI * 2); g.stroke();
+    g.lineWidth = N * 0.028;
+    for (var i = 0; i < 9; i++) {           // simple angular glyphs between the two rings
+      var a = i / 9 * Math.PI * 2; g.save(); g.translate(cx + Math.cos(a) * N * 0.40, cx + Math.sin(a) * N * 0.40); g.rotate(a + Math.PI / 2);
+      var h = N * 0.045, w = N * 0.03; g.beginPath(); g.moveTo(0, -h); g.lineTo(0, h);
+      var t = (rnd() * 4) | 0;
+      if (t === 0) { g.moveTo(0, -h * 0.3); g.lineTo(w, -h); } else if (t === 1) { g.moveTo(-w, -h * 0.2); g.lineTo(w, h * 0.4); }
+      else if (t === 2) { g.moveTo(0, 0); g.lineTo(w, -h * 0.5); g.lineTo(0, -h); } else { g.moveTo(-w, h); g.lineTo(w, -h * 0.1); }
+      g.stroke(); g.restore();
     }
-    iris(g, false); pupil(g, '#05060c');
-    var cG = mk(), gg = cG.getContext('2d'); gg.fillStyle = '#000'; gg.fillRect(0, 0, N, N); iris(gg, true); pupil(gg, '#000');
-    function tex(c, srgb) { var t = new THREE.CanvasTexture(c); if (srgb) t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; t.anisotropy = 4; return t; }
-    return (_eyeTex[key] = { map: tex(cA, true), glow: tex(cG, true) });
+    _runeTex = new THREE.CanvasTexture(c); return _runeTex;
   }
   function eyeGeos(hiQ) {
     var k = hiQ ? 'h' : 'l';
@@ -367,34 +413,28 @@ import * as SkeletonUtils from '../../vendor/three-addons-g/utils/SkeletonUtils.
     var lidU = new THREE.SphereGeometry(1, Math.round(22 * s), Math.round(8 * s), 0, Math.PI, 0, Math.PI / 2);
     var lidL = new THREE.SphereGeometry(1, Math.round(22 * s), Math.round(8 * s), 0, Math.PI, Math.PI / 2, Math.PI / 2);
     var lash = new THREE.TorusGeometry(1.0, 0.035, 4, Math.round(16 * s), Math.PI * 0.56); lash.rotateZ(Math.PI * 0.22); lash.rotateX(Math.PI / 2);
-    var lip = new THREE.TorusGeometry(1.0, 0.17, Math.round(8 * s), Math.round(28 * s));
-    var ring = new THREE.RingGeometry(0.92, 1.2, 36, 1);
+    var frost = new THREE.TorusGeometry(1.0, 0.1, Math.round(6 * s), Math.round(28 * s));
+    var brow = new THREE.TorusGeometry(1.0, 0.13, Math.round(6 * s), Math.round(18 * s), Math.PI * 0.62); brow.rotateZ(Math.PI * 0.19);
+    var rune = new THREE.RingGeometry(1.08, 1.5, 40, 1);
+    var ruv = rune.attributes.uv, rp = rune.attributes.position;
+    for (var j = 0; j < rp.count; j++) ruv.setXY(j, rp.getX(j) / 3.2 + 0.5, rp.getY(j) / 3.2 + 0.5);
     var dot = new THREE.CircleGeometry(1, 16);
     var bar = new THREE.BoxGeometry(1.5, 0.2, 0.08);
-    return (_eyeGeo[k] = { ball: ball, cornea: cornea, lidU: lidU, lidL: lidL, lash: lash, lip: lip, ring: ring, dot: dot, bar: bar });
+    return (_eyeGeo[k] = { ball: ball, cornea: cornea, lidU: lidU, lidL: lidL, lash: lash, frost: frost, brow: brow, rune: rune, dot: dot, bar: bar });
   }
-  var _ringTex = null;
-  function ringTex() {
-    if (_ringTex) return _ringTex;
-    var c = document.createElement('canvas'); c.width = c.height = 64; var g = c.getContext('2d');
-    var gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
-    gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.60, 'rgba(255,255,255,0)'); gr.addColorStop(0.66, 'rgba(255,255,255,1)');
-    gr.addColorStop(0.78, 'rgba(255,255,255,0.45)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
-    g.fillStyle = gr; g.fillRect(0, 0, 64, 64); _ringTex = new THREE.CanvasTexture(c); return _ringTex;
-  }
-  var EXPR = {            // upper / lower lid edge height (unit eye space, 1 = top), iris scale (repeat), eye scale
+  var EXPR = {            // upper / lower lid edge height (unit eye space, 1 = top), pupil scale (repeat), eye scale
     rest:   { u: 0.90, l: -0.97, ir: 1.0, es: 1.0 },
     squint: { u: 0.30, l: -0.48, ir: 1.05, es: 0.97 },
     focus:  { u: 0.62, l: -0.82, ir: 1.08, es: 1.0 },
-    wide:   { u: 1.10, l: -1.10, ir: 1.45, es: 1.12 },
+    wide:   { u: 1.10, l: -1.10, ir: 1.3, es: 1.12 },
     closed: { u: -0.04, l: 0.04, ir: 1.0, es: 0.96 }
   };
   var CLIP_EXPR = { attack: ['squint', 0.55], cast: ['focus', 0.7], hit: ['wide', 0.45], hop: ['rest', 0] };
 
-  function makeEyes(model, pr, hiQ, env, mats, bodyMat) {
+  function makeEyes(model, pr, hiQ, env, mats, tierName) {
     var head = model.getObjectByName('head');
     var eyeMeshes = [];
-    model.traverse(function (o) { if (o.isSkinnedMesh && o.material && (o.material.name === 'GelEye' || o.userData._eyeSrc)) eyeMeshes.push(o); });
+    model.traverse(function (o) { if (o.isSkinnedMesh && o.material && (o.material.name === 'GelEye' || (o.userData._eyeSrc && !o.userData._eyeShine))) eyeMeshes.push(o); });
     if (!head || !eyeMeshes.length) return null;
     var sides = { L: null, R: null }, v = new THREE.Vector3();
     eyeMeshes.forEach(function (m) {
@@ -406,37 +446,35 @@ import * as SkeletonUtils from '../../vendor/three-addons-g/utils/SkeletonUtils.
         b.min.min(v); b.max.max(v);
       }
     });
-    var T = eyeTextures(pr), G = eyeGeos(hiQ);
+    var TB = eyeTextures(pr, 'baby'), TG = eyeTextures(pr, 'glow'), G = eyeGeos(hiQ);
     var bodyCol = new THREE.Color(pr.color);
     var M = {
-      ball: new THREE.MeshPhysicalMaterial({ map: T.map, emissiveMap: T.glow, emissive: new THREE.Color(pr.eyeIris), emissiveIntensity: pr.eyeGlow,
-        roughness: 0.35, clearcoat: 0.0, envMapIntensity: 0.6 }),
+      ball: new THREE.MeshPhysicalMaterial({ map: TB.map, emissiveMap: TB.glow, emissive: new THREE.Color(pr.eyeIris), emissiveIntensity: pr.eyeGlow,
+        roughness: pr.eyeMetal ? 0.12 : 0.3, metalness: pr.eyeMetal ? 0.85 : 0, clearcoat: 1.0, clearcoatRoughness: 0.02, envMapIntensity: pr.eyeMetal ? 1.6 : 0.8 }),
       cornea: hiQ ? new THREE.MeshPhysicalMaterial({ color: 0xffffff, transmission: 1.0, thickness: 0.06, ior: 1.376, roughness: 0.0,
         clearcoat: 1.0, clearcoatRoughness: 0.0, specularIntensity: 1.0, envMapIntensity: 1.8 })
         : new THREE.MeshPhysicalMaterial({ color: 0xffffff, transparent: true, opacity: 0.18, roughness: 0.0, clearcoat: 1.0, envMapIntensity: 1.8, depthWrite: false }),
       lid: new THREE.MeshPhysicalMaterial({ color: bodyCol.clone().multiplyScalar(0.92), roughness: 0.12, clearcoat: 1.0, clearcoatRoughness: 0.04,
         sheen: 0.3, sheenColor: new THREE.Color(pr.sheenCol), emissive: bodyCol.clone().multiplyScalar(0.18), envMapIntensity: 1.3 }),
       lash: new THREE.MeshStandardMaterial({ color: bodyCol.clone().multiplyScalar(0.38), roughness: 0.4 }),
-      lip: hiQ ? new THREE.MeshPhysicalMaterial({ color: pr.eyeFrost ? 0xeaffff : new THREE.Color(0xffffff).lerp(bodyCol, 0.35), transmission: pr.eyeFrost ? 0.4 : 1.0, thickness: 0.12,
-        ior: pr.ior, roughness: pr.eyeFrost ? 0.45 : 0.04, clearcoat: 1.0, clearcoatRoughness: 0.03,
-        emissive: pr.eyeFrost ? new THREE.Color(0x9fdcff) : new THREE.Color(0x000000), emissiveIntensity: pr.eyeFrost ? 0.45 : 0, envMapIntensity: 1.4 })
-        : new THREE.MeshPhysicalMaterial({ color: pr.eyeFrost ? 0xeaffff : pr.color, transparent: true, opacity: 0.55, roughness: 0.05, clearcoat: 1, depthWrite: false }),
-      ring: new THREE.MeshBasicMaterial({ color: 0x000000, alphaMap: ringTex(), transparent: true, opacity: 0.16,
-        depthWrite: false, toneMapped: false }),
-      shine: new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false, transparent: true, opacity: 0.95, depthWrite: false }),
+      brow: new THREE.MeshPhysicalMaterial({ color: bodyCol.clone().multiplyScalar(0.62), roughness: 0.1, clearcoat: 1.0, clearcoatRoughness: 0.03,
+        emissive: bodyCol.clone().multiplyScalar(0.12), envMapIntensity: 1.3 }),
+      frost: new THREE.MeshStandardMaterial({ color: 0xeaffff, roughness: 0.6, emissive: new THREE.Color(0x9fdcff), emissiveIntensity: 0.5 }),
+      rune: new THREE.MeshBasicMaterial({ map: runeTex(), color: new THREE.Color(pr.eyeIris).multiplyScalar(2.2), alphaTest: 0.35, side: THREE.DoubleSide, toneMapped: false }),
+      shine: new THREE.MeshBasicMaterial({ color: pr.eyeShine, toneMapped: false }),
       xbar: new THREE.MeshStandardMaterial({ color: 0x2a0c18, roughness: 0.5 })
     };
     Object.keys(M).forEach(function (k) { if (env && 'envMap' in M[k] && !M[k].isMeshBasicMaterial) M[k].envMap = env; mats.push(M[k]); });
     var headIdx = -1, sk = null;
     var rigs = [];
+    var sink = pr.eyeSink;   // how far (in eye depths) the eye hangs back under the gel surface
     ['L', 'R'].forEach(function (s) {
       var b = sides[s]; if (!b) return;
       sk = b.mesh.skeleton; headIdx = sk.bones.indexOf(head);
       var toBone = new THREE.Matrix4().copy(headIdx >= 0 ? sk.boneInverses[headIdx] : new THREE.Matrix4());
       var c = b.min.clone().add(b.max).multiplyScalar(0.5);
-      var hy = (b.max.y - b.min.y) * 0.5, hx = pr.eyeHx || 0.14, hz = 0.075;
+      var hy = (b.max.y - b.min.y) * 0.5 * pr.eyeMag, hx = (pr.eyeHx || 0.14) * pr.eyeMag, hz = 0.075;
       var fwd = new THREE.Vector3(c.x, 0, c.z).normalize();
-      // model-space basis -> bone space orientation
       var rot = new THREE.Matrix4().extractRotation(toBone);
       var zAx = fwd.clone().applyMatrix4(rot).normalize(), yAx = new THREE.Vector3(0, 1, 0).applyMatrix4(rot).normalize();
       var xAx = new THREE.Vector3().crossVectors(yAx, zAx).normalize(); yAx.crossVectors(zAx, xAx);
@@ -444,41 +482,55 @@ import * as SkeletonUtils from '../../vendor/three-addons-g/utils/SkeletonUtils.
       var bonePos = c.clone().applyMatrix4(toBone);
       var bs = new THREE.Vector3(); toBone.decompose(new THREE.Vector3(), new THREE.Quaternion(), bs);
       var root = new THREE.Group(); root.name = 'EyeRig' + s; root.position.copy(bonePos); root.quaternion.copy(q);
-      var unit = new THREE.Group(); unit.scale.set(hx * bs.x, hy * bs.y, hz * bs.z); root.add(unit);
+      var unit = new THREE.Group(); unit.scale.set(hx * bs.x, hy * bs.y, hz * bs.z); unit.position.z = -sink * hz * bs.z; root.add(unit);
       function mesh(geo, mat, ro) { var m = new THREE.Mesh(geo, mat); m.frustumCulled = false; if (ro != null) m.renderOrder = ro; return m; }
       var ball = mesh(G.ball, M.ball); unit.add(ball);
       var cornea = mesh(G.cornea, M.cornea); cornea.scale.set(1.03, 1.03, 1.28); unit.add(cornea);
-      var ring = mesh(G.ring, M.ring, 2); ring.position.z = 0.4; unit.add(ring);
-      var lip = mesh(G.lip, (hiQ && bodyMat) ? bodyMat : M.lip); lip.position.z = 0.5; lip.scale.set(1, 1, 1.2); unit.add(lip);
+      var frost = null; if (pr.eyeFrost) { frost = mesh(G.frost, M.frost); frost.position.z = 0.45; unit.add(frost); }
       var lidsG = new THREE.Group(); lidsG.scale.set(1.09, 1.09, 1.42); unit.add(lidsG);
       var lidU = mesh(G.lidU, M.lid); lidsG.add(lidU);
       var lash = mesh(G.lash, M.lash); lash.scale.set(1.01, 1, 1.01); lidU.add(lash);
       var lidL = mesh(G.lidL, M.lid); lidsG.add(lidL);
-      var zc = function (x, y) { return 1.28 * Math.sqrt(Math.max(0, 1 - x * x - y * y)) + 0.25; };
-      var sh1 = mesh(G.dot, M.shine, 5); sh1.position.set(-0.34, 0.40, zc(-0.34, 0.40)); sh1.scale.set(0.22, 0.2, 1); unit.add(sh1);
-      var sh2 = mesh(G.dot, M.shine, 5); sh2.position.set(0.30, -0.36, zc(0.30, -0.36)); sh2.scale.set(0.1, 0.09, 1); unit.add(sh2);
+      // mid/top: gel brow arc above the eye, tilted down toward the nose (determined look)
+      var brow = mesh(G.brow, M.brow); brow.position.set(0, 0.28, 0.75); brow.scale.set(1.18, 1.0, 1.0);
+      brow.rotation.z = (s === 'L' ? -1 : 1) * 0.16; unit.add(brow);
+      // top: rune ring around the eye
+      var rune = mesh(G.rune, M.rune); rune.position.z = 0.55; unit.add(rune);
+      var zc = function (x, y) { return 1.28 * Math.sqrt(Math.max(0, 1 - x * x - y * y)) + 0.08; };
+      var sh1 = mesh(G.dot, M.shine); sh1.position.set(-0.32, 0.36, zc(-0.32, 0.36)); sh1.scale.set(0.24, 0.22, 1); unit.add(sh1);
+      var sh2 = mesh(G.dot, M.shine); sh2.position.set(0.30, -0.34, zc(0.30, -0.34)); sh2.scale.set(0.1, 0.09, 1); unit.add(sh2);
       var xg = new THREE.Group(); xg.position.z = 1.5; xg.visible = false; unit.add(xg);
       var x1 = mesh(G.bar, M.xbar); x1.rotation.z = 0.8; var x2 = mesh(G.bar, M.xbar); x2.rotation.z = -0.8; xg.add(x1); xg.add(x2);
       head.add(root);
-      var tex = M.ball.map; // shared per element: gaze via per-eye texture clones
-      var mapC = tex.clone(), glowC = M.ball.emissiveMap.clone(); mapC.needsUpdate = true; glowC.needsUpdate = true;
-      var bm = M.ball.clone(); bm.map = mapC; bm.emissiveMap = glowC; ball.material = bm; mats.push(bm);
-      rigs.push({ s: s, root: root, unit: unit, basePos: bonePos.clone(), bindC: c, rotB: rot, lidU: lidU, lidL: lidL, x: xg, map: mapC, glow: glowC,
-        cornea: cornea, sh1: sh1, sh2: sh2 });
+      var bm = M.ball.clone(); ball.material = bm; mats.push(bm);
+      var tx = { baby: { map: TB.map.clone(), glow: TB.glow.clone() }, glow: { map: TG.map.clone(), glow: TG.glow.clone() } };
+      ['baby', 'glow'].forEach(function (kk) { tx[kk].map.needsUpdate = true; tx[kk].glow.needsUpdate = true; });
+      rigs.push({ s: s, root: root, unit: unit, basePos: bonePos.clone(), bindC: c, rotB: rot, lidU: lidU, lidL: lidL, x: xg, ballMat: bm, tx: tx,
+        map: tx.baby.map, glow: tx.baby.glow, cornea: cornea, sh1: sh1, sh2: sh2, brow: brow, rune: rune, frost: frost,
+        sp: new THREE.Vector3(), sv: new THREE.Vector3(), prevW: null, eyeW: hx * bs.x });
     });
-    // shared-texture parents no longer used directly
     M.ball.map = null; M.ball.emissiveMap = null;
     var st = { u: EXPR.rest.u, l: EXPR.rest.l, ir: 1, es: 1, expr: 'rest', exprT: 0, blinkIn: 1.5 + Math.random() * 2.5, blinkT: -1,
-      gx: 0, gy: 0, tgx: 0, tgy: 0, look: null, lookT: 0, glanceIn: 1 + Math.random() * 2, dead: false };
-    var tmpV = new THREE.Vector3(), tmpM = new THREE.Matrix4(), off = new THREE.Vector3();
+      gx: 0, gy: 0, tgx: 0, tgy: 0, look: null, lookT: 0, glanceIn: 1 + Math.random() * 2, dead: false, tier: 'base', runeA: 0 };
+    var tmpV = new THREE.Vector3(), tmpM = new THREE.Matrix4(), off = new THREE.Vector3(), wp = new THREE.Vector3(), dl = new THREE.Vector3(),
+      pq = new THREE.Quaternion(), ps = new THREE.Vector3();
+    function setTier(t) {
+      if (!EYE_TIERS[t]) t = 'base'; st.tier = t; var T = EYE_TIERS[t];
+      rigs.forEach(function (r) {
+        var k = T.iris ? 'glow' : 'baby'; r.map = r.tx[k].map; r.glow = r.tx[k].glow;
+        r.ballMat.map = r.map; r.ballMat.emissiveMap = r.glow;
+        r.ballMat.emissiveIntensity = T.iris ? Math.max(1.3, pr.eyeGlow * 1.4) : pr.eyeGlow; r.ballMat.needsUpdate = true;
+        r.brow.visible = T.brow; r.rune.visible = T.runes;
+      });
+    }
     function setExpr(name, dur) { st.expr = name; st.exprT = dur || 0; }
     function lookAt(obj, dur) { st.look = obj || null; st.lookT = dur || 1.2; }
     function tick(dt, U, figs, self) {
       var h = Math.min(dt, 1 / 20);
       if (st.exprT > 0) { st.exprT -= dt; if (st.exprT <= 0 && !st.dead) st.expr = 'rest'; }
-      var E = EXPR[st.dead ? 'closed' : st.expr] || EXPR.rest;
+      var E = EXPR[st.dead ? 'closed' : st.expr] || EXPR.rest, TT = EYE_TIERS[st.tier];
       var bu = E.u, bl = E.l;
-      // blink (not while dead / wide-eyed)
+      if (!st.dead && st.expr === 'rest') { bu = TT.u; bl = TT.l; }
       if (!st.dead) {
         st.blinkIn -= dt;
         if (st.blinkIn <= 0 && st.blinkT < 0) { st.blinkT = 0; st.blinkIn = 2.2 + Math.random() * 3.2 + (Math.random() < 0.2 ? -1.8 : 0); }
@@ -490,7 +542,6 @@ import * as SkeletonUtils from '../../vendor/three-addons-g/utils/SkeletonUtils.
       var a = 1 - Math.exp(-h * (st.blinkT >= 0 ? 60 : 16));
       st.u += (bu - st.u) * a; st.l += (bl - st.l) * a;
       var a2 = 1 - Math.exp(-h * 10); st.ir += (E.ir - st.ir) * a2; st.es += (E.es - st.es) * a2;
-      // gaze: explicit target, else occasional glance at a living foe, else forward
       if (st.lookT > 0) st.lookT -= dt; else st.look = null;
       if (!st.look && figs && !st.dead) {
         st.glanceIn -= dt;
@@ -500,21 +551,33 @@ import * as SkeletonUtils from '../../vendor/three-addons-g/utils/SkeletonUtils.
           if (foes.length && Math.random() < 0.75) { st.look = foes[(Math.random() * foes.length) | 0].root; st.lookT = 0.9 + Math.random() * 1.4; }
         }
       }
-      var ux = 1, uy = 1;
+      st.runeA += dt * 0.35;
       rigs.forEach(function (r) {
-        // surface jiggle at the eye (matches the vertex shader) so the eye rides the gel
+        // lag + wobble: the eye hangs in the gel, so when the head moves (hop / squash / lunge) it trails behind,
+        // then springs back with a little overshoot. Spring offset lives in head-bone space.
+        var par = r.root.parent; par.updateWorldMatrix(true, false); par.matrixWorld.decompose(wp, pq, ps);
+        if (r.prevW && dt > 0) {
+          dl.copy(wp).sub(r.prevW);
+          if (dl.lengthSq() < 0.25) { dl.applyQuaternion(pq.invert()).divideScalar(ps.x || 1); r.sp.addScaledVector(dl, -pr.eyeLag * 0.35); }
+        }
+        r.prevW = (r.prevW || new THREE.Vector3()).copy(wp);
+        var K = 170, C = 7.5;
+        r.sv.addScaledVector(r.sp, -K * h).multiplyScalar(Math.max(0, 1 - C * h)); r.sp.addScaledVector(r.sv, h);
+        var lim = r.eyeW * 0.3; if (r.sp.length() > lim) r.sp.setLength(lim);
+        off.set(0, 0, 0);
         if (U) {
           var p = r.bindC, hw = Math.min(1.6, Math.max(0, p.y / 1.1)); hw *= hw; var ph = U.uTime.value * U.uJigFreq.value, am = U.uJigAmp.value * hw;
           off.set(Math.sin(ph + p.y * 4 + p.z * 3) * am, Math.sin(ph * 1.3 + p.x * 5 + p.z * 2) * am * 0.45, Math.cos(ph * 0.87 + p.y * 3.5 + p.x * 3) * am);
-          off.applyMatrix4(r.rotB); r.root.position.copy(r.basePos).add(off);
+          off.applyMatrix4(r.rotB);
         }
-        r.unit.scale.multiplyScalar(1); r.root.scale.setScalar(st.es);
+        r.root.position.copy(r.basePos).add(off).add(r.sp);
+        r.root.scale.setScalar(st.es);
         r.lidU.rotation.x = -Math.asin(Math.max(-1, Math.min(1, st.u)));
         r.lidL.rotation.x = -Math.asin(Math.max(-1, Math.min(1, st.l)));
-        // lids only exist while they cover the eye: fully open they would swing back inside the clear gel
         r.lidU.visible = st.u < 0.82; r.lidL.visible = st.l > -0.9;
         r.x.visible = st.dead;
         r.sh1.visible = r.sh2.visible = !st.dead;
+        r.rune.rotation.z = (r.s === 'L' ? 1 : -1) * st.runeA;
       });
       var tgx = 0, tgy = 0;
       if (st.look && rigs.length) {
@@ -526,12 +589,13 @@ import * as SkeletonUtils from '../../vendor/three-addons-g/utils/SkeletonUtils.
       }
       var a3 = 1 - Math.exp(-h * 14); st.gx += (tgx - st.gx) * a3; st.gy += (tgy - st.gy) * a3;
       rigs.forEach(function (r) {
-        var rp = st.ir, ox = 0.5 * (1 - rp) - st.gx * 0.34 * rp, oy = 0.5 * (1 - rp) - st.gy * 0.34 * rp;
+        var rp = st.ir, ox = 0.5 * (1 - rp) - st.gx * 0.3 * rp, oy = 0.5 * (1 - rp) - st.gy * 0.3 * rp;
         r.map.repeat.set(rp, rp); r.map.offset.set(ox, oy); r.glow.repeat.set(rp, rp); r.glow.offset.set(ox, oy);
       });
     }
+    setTier(tierName);
     return {
-      rigs: rigs, st: st, setExpr: setExpr, lookAt: lookAt, tick: tick,
+      rigs: rigs, st: st, setExpr: setExpr, lookAt: lookAt, tick: tick, setTier: setTier,
       faint: function () { st.dead = true; st.look = null; },
       revive: function () { st.dead = false; st.expr = 'rest'; st.exprT = 0; }
     };
@@ -605,7 +669,7 @@ import * as SkeletonUtils from '../../vendor/three-addons-g/utils/SkeletonUtils.
         o.userData._eyeSrc = true; if (!opts.legacyEyes) o.visible = false; // v3: replaced by the modeled eye rig
       } else if (name === 'GelEyeShine') {
         m = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false });
-        o.userData._eyeSrc = true; if (!opts.legacyEyes) o.visible = false;
+        o.userData._eyeSrc = true; o.userData._eyeShine = true; if (!opts.legacyEyes) o.visible = false;
       } else if (name === 'GelMouth') {
         m = new THREE.MeshStandardMaterial({ color: 0x3a0d1a, roughness: 0.5 });
       } else if (name === 'GelBubble') {
@@ -637,7 +701,7 @@ import * as SkeletonUtils from '../../vendor/three-addons-g/utils/SkeletonUtils.
     });
     if (!body) { console.warn('[Hero3D] no GelBody in', el); return null; }
 
-    var eyes = opts.legacyEyes ? null : makeEyes(model, pr, hiQ, env, mats, body && body.material);
+    var eyes = opts.legacyEyes ? null : makeEyes(model, pr, hiQ, env, mats, eyeTierFor(unit, opts));
     var root = new THREE.Group();
     root.add(model);
 
@@ -736,7 +800,7 @@ import * as SkeletonUtils from '../../vendor/three-addons-g/utils/SkeletonUtils.
 
   window.SR_HERO3D = {
     enabled: enabled, isPilot: isPilot, preload: preload, ready: ready,
-    makeFigure: makeFigure, urlFor: urlFor, CLIPS: CLIPS, _cache: gltfCache, _failed: failed, _live: live, PROPS: PROPS, propsFor: propsFor, EXPR: EXPR
+    makeFigure: makeFigure, urlFor: urlFor, CLIPS: CLIPS, _cache: gltfCache, _failed: failed, _live: live, PROPS: PROPS, propsFor: propsFor, EXPR: EXPR, EYE_TIERS: EYE_TIERS, eyeTierFor: eyeTierFor
   };
   window.dispatchEvent(new Event('sr-hero3d-ready'));
   console.log('[Hero3D] ready (pilots: water, fire, plant)');
