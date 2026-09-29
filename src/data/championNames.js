@@ -15,7 +15,7 @@
       'Plume', 'Eddy', 'Shoreling', 'Rainwell', 'Marrowtide', 'Azurel', 'Drench', 'Softsalt'
     ],
     Fire: [
-      'Ember', 'Cinder', 'Pyra', 'Scorch', 'Kindle', 'Flare', 'Ashen', 'Brand', 'Hearth', 'Coal',
+      'Ember', 'Cinder', 'Pyra', 'Scorch', 'Kindle', 'Flare', 'Brand', 'Hearth', 'Coal',
       'Solflare', 'Forgeheart', 'Glimmer', 'Blazen', 'Torch', 'Smolder', 'Vesta', 'Ignis',
       'Char', 'Furnace', 'Spark', 'Pyre', 'Heatling', 'Lavafin', 'Crimson', 'Warmcore',
       'Brandish', 'Kindlewood', 'Soot', 'Flint', 'Pyrelight', 'Ashsong', 'Emberkin', 'Sunblot'
@@ -35,7 +35,7 @@
     Plant: [
       'Bloom', 'Sprout', 'Fern', 'Mossy', 'Petal', 'Ivy', 'Thorn', 'Sap', 'Grove', 'Seed',
       'Bloomkin', 'Lichen', 'Bramble', 'Willow', 'Clover', 'Orchid', 'Vine', 'Canopy',
-      'Rootlet', 'Greenheart', 'Mossveil', 'Blossom', 'Sappy', 'Leaf', 'Briar', 'Pollen',
+      'Rootlet', 'Greenheart', 'Mossveil', 'Blossom', 'Sappy', 'Leaf', 'Pollen',
       'Softwood', 'Meadow', 'Bud', 'Tendril', 'Chlor', 'Mossbell', 'Honeysap', 'Verdant'
     ],
     Lightning: [

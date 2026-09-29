@@ -22,7 +22,7 @@
     "pack:customers": "npm run dist:all && node scripts/pack-customer-zips.js",
     "release:mac": "npm test && npm run pack:mac && npm run launchers",
     "release:all": "npm test && npm run pack:customers && npm run launchers",
-    "test": "node tests/combat-unit.test.js && node tests/systems-port.test.js && node tests/feature-parity.test.js && node tests/gacha-loop.test.js && node tests/arena-depth.test.js && node tests/art-parity.test.js && node tests/hybrid-rsl.test.js && node tests/phaser-boot.test.js && node tests/phaser-live-boot.test.js",
+    "test": "node tests/combat-unit.test.js && node tests/hero-roster.test.js && node tests/systems-port.test.js && node tests/feature-parity.test.js && node tests/gacha-loop.test.js && node tests/arena-depth.test.js && node tests/art-parity.test.js && node tests/hybrid-rsl.test.js && node tests/phaser-boot.test.js && node tests/phaser-live-boot.test.js",
     "test:hybrid": "node tests/hybrid-rsl.test.js",
     "test:combat": "node tests/combat-unit.test.js",
     "test:systems": "node tests/systems-port.test.js",

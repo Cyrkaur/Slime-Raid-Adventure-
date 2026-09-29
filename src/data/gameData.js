@@ -6,7 +6,9 @@
   var CW = global.SR_CAMPAIGN_WORLD || null;
   var CN = global.SR_CHAMPION_NAMES || null;
   var SL = global.SR_STORY_LORE || null;
+  var HR = global.SR_HERO_ROSTER || null;
   try {
+    if (!HR && typeof require !== 'undefined') HR = require('./heroRoster.js');
     if (!CW && typeof require !== 'undefined') CW = require('./campaignWorld.js');
     if (!CN && typeof require !== 'undefined') CN = require('./championNames.js');
     if (!SL && typeof require !== 'undefined') SL = require('./storyLore.js');
@@ -676,6 +678,19 @@
     Void: { title: 'Abyss', role: 'Specialist', affinity: 'Unmakes Light, Shadow, Spirit', personality: 'Distant, hungry', signature: 'Venom / Collapse', blurb: 'Rare null-gel that eats patterns other elements rely on.', extended: 'Abyss cores surface only near Eternity rifts and Void Tower floors.' }
   };
 
+  // Lineage names: founder decision pending. HERO_ROSTER_CONFIG.lineageNames
+  // 'codex' uses the Slime Adventure titles (Emberheart, Stonegut, Zephyrkin...);
+  // 'phaser' keeps the titles above. The older Phaser title stays on titlePhaser.
+  (function applyLineageNames() {
+    if (!HR || !HR.CODEX_LINEAGES) return;
+    var mode = (HR.HERO_ROSTER_CONFIG && HR.HERO_ROSTER_CONFIG.lineageNames) || 'codex';
+    Object.keys(ELEMENT_LORE).forEach(function (k) {
+      var e = ELEMENT_LORE[k];
+      e.titlePhaser = e.title;
+      if (mode === 'codex' && HR.CODEX_LINEAGES[k]) e.title = HR.CODEX_LINEAGES[k].title;
+    });
+  })();
+
   /**
    * Fixed star count by rarity (does not change when you evolve).
    * Evolution turns stars purple (awakened) — max purples = base stars.
@@ -694,9 +709,9 @@
     Common: { blurb: 'Everyday gel — soft blob, eager to grow.', bio: 'Common cores form freely in the wilds as simple blobby masses; little form control yet.', stars: 1 },
     Uncommon: { blurb: 'A sharper spark of will and color.', bio: 'Uncommon slimes stay mostly blobby, with the first hints of stubby nubs and personality.', stars: 2 },
     Rare: { blurb: 'Hardened by rare essence veins.', bio: 'Rare champions firm their affinity; some begin pushing soft blob-arms when stressed.', stars: 3 },
-    Epic: { blurb: 'Morph form control — clear blob-arms.', bio: 'Epic gel can hold semi-shaped tentacle arms while remaining a slime mass in battle.', stars: 4 },
-    Legendary: { blurb: 'Named legend with shaped silhouette.', bio: 'Legendary cores deliberately sculpt elemental silhouettes — crests, thicker arms — still slime-bodied, not humanoid.', stars: 5 },
-    Mythic: { blurb: 'Peak form control; mythic shaped presence.', bio: 'Mythic gel bends its mass into complex shapes at will — rarely near-humanoid, always still gel at the core.', stars: 6 }
+    Epic: { blurb: 'Morph form control — clear blob-arms.', bio: 'Epic gel can hold semi-shaped tentacle arms while remaining a slime mass in battle, and rises to an Ascended shaped torso at three awakenings.', stars: 4 },
+    Legendary: { blurb: 'Named legend with an Ascended silhouette.', bio: 'Legendary cores hold an Ascended form (shaped torso, arms, element armor) and become Shape-Bound near-humanoid gel at five awakenings.', stars: 5 },
+    Mythic: { blurb: 'Once-per-era gel, Shape-Bound by default.', bio: 'Mythic gel arrives Shape-Bound: a near-humanoid gel figure with face, hands, and drips, always gel at the core.', stars: 6 }
   };
 
   /** Fixed base stars from rarity only (saved baseStars is rewritten on load). */
@@ -1210,10 +1225,12 @@
   }
 
   /**
-   * Lore form ladder (matches SR_ART.gelFormForUnit combat art):
-   * Common/Uncommon → blob; some Rare → morph; Epic → morph;
-   * Legendary/Mythic → shaped (high form control, still slime-bodied).
-   * Legacy keys humanoid/ascended map to shaped for UI copy.
+   * Form ladder (4 tiers, matches docs/HERO_DESIGN.md §2):
+   *   blob     — Common, Uncommon, most Rare
+   *   morph    — Epic, ~1 in 3 Rare, anything at evo 2+
+   *   ascended — Legendary, Epic at evo 3+
+   *   humanoid — Mythic, Legendary at evo 5+ (Shape-Bound)
+   * An explicit formTier wins; the legacy key 'shaped' maps to 'humanoid'.
    */
   function resolveFormTier(slime) {
     if (!slime) return 'blob';
@@ -1721,6 +1738,8 @@
     getStageLore: getStageLore,
     getStoryActs: getStoryActs,
     generateChampionName: generateChampionName,
+    HERO_ROSTER: HR,
+    getNamedHero: function (el, rar) { return HR && HR.getNamedHero ? HR.getNamedHero(el, rar) : null; },
     rollTraitsForRarity: rollTraitsForRarity,
     computeChampionAttributes: computeChampionAttributes,
     computeRaidPowerScore: computeRaidPowerScore,

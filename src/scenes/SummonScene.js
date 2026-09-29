@@ -394,7 +394,8 @@
         const bestLine = best
           ? ('★ Best · ' + (best.rarity || '') + ' ' + (best.name || 'Gel'))
           : '';
-        const names = results.map((c) => (c.rarity || '') + ' ' + (c.name || 'Gel')).join('  ·  ');
+        const names = results.map((c) => (c.rarity || '') + ' ' + (c.name || 'Gel') +
+          (c.duplicateOf != null ? ' (duplicate, converted to shards)' : '')).join('  ·  ');
         this.resultText.setColor('#f0e8ff');
         this.resultText.setText(
           '✦ Summoned ' + results.length + ' champions!\n' +

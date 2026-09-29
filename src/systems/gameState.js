@@ -10,6 +10,14 @@
     return Date.now() + (_idSeq++);
   }
 
+  function namedHeroApi() {
+    var HR = global.SR_HERO_ROSTER || null;
+    if (!HR && typeof require !== 'undefined') {
+      try { HR = require('../data/heroRoster.js'); } catch (e) { HR = null; }
+    }
+    return HR;
+  }
+
   function createChampion(opts) {
     opts = opts || {};
     var el = opts.element || ((DATA && DATA.ELEMENTS) || ['Water'])[Math.floor(Math.random() * 4)];
@@ -27,6 +35,12 @@
     var equipment = opts.equipment && typeof opts.equipment === 'object' ? opts.equipment : {};
     var id = opts.id != null ? opts.id : nextId();
     var displayName = opts.name;
+    // Epic / Legendary / Mythic resolve to the element's named hero (skips the
+    // name generator). An explicit opts.name keeps the old generic behavior.
+    var named = null;
+    if (opts.heroId) named = namedHeroApi() && namedHeroApi().getHeroById(opts.heroId);
+    else if (!displayName && namedHeroApi()) named = namedHeroApi().getNamedHero(el, rarity);
+    if (named && !displayName) displayName = named.name;
     if (!displayName) {
       if (DATA && typeof DATA.generateChampionName === 'function') {
         displayName = DATA.generateChampionName(el, rarity, id);
@@ -83,7 +97,11 @@
       /** Combat sprite pose key: a | b | c */
       artVariant: String(artVariant).toLowerCase(),
       /** Themed skill kit ids (element × rarity unlock). Combat rebuilds from kit if missing. */
-      skillIds: skillIds
+      skillIds: skillIds,
+      /** Named hero id (src/data/heroRoster.js) for Epic+; null for species. Survives renames. */
+      heroId: named ? named.id : null,
+      /** Signature skill stub from the roster; slot and numbers come in the combat pass. */
+      signatureSkill: named && named.signature ? { name: named.signature.name, text: named.signature.text, slot: named.signature.slot } : null
     };
     // Derive combat attributes (traits/gear) without writing them back into base power
     if (DATA && DATA.computeChampionAttributes) {
@@ -869,7 +887,18 @@
         ? DATA.ELEMENTS[Math.floor(Math.random() * DATA.ELEMENTS.length)]
         : 'Water';
       var champ = createChampion({ element: el, rarity: rarity, level: 1 });
-      state.roster.push(champ);
+      var HRs = champ.heroId ? namedHeroApi() : null;
+      var owned = HRs ? HRs.findOwnedNamedHero(state.roster, champ.heroId) : null;
+      var keep = true;
+      if (owned && HRs.onDuplicateNamedHero) {
+        var dup = HRs.onDuplicateNamedHero(state, champ, owned) || { keep: true };
+        keep = dup.keep !== false;
+        if (!keep) {
+          champ.duplicateOf = owned.id;
+          champ.convertedTo = dup.converted || null;
+        }
+      }
+      if (keep) state.roster.push(champ);
       results.push(champ);
       state.stats.summons = (state.stats.summons || 0) + 1;
     }

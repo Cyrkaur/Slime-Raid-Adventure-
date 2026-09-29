@@ -75,15 +75,15 @@
     },
     Epic: {
       blurb: 'Morph form control — clear blob-arms and battlefield will.',
-      bio: 'Epic gel can hold semi-shaped tentacle arms while remaining a slime mass in battle. Softened Realms legends list them among Haven defenders who turned Void scouts back without losing their softness.'
+      bio: 'Epic gel can hold semi-shaped tentacle arms while remaining a slime mass in battle, and at three awakenings it rises into an Ascended form with a shaped torso. Softened Realms legends list them among Haven defenders who turned Void scouts back without losing their softness.'
     },
     Legendary: {
-      blurb: 'Named legend with shaped elemental silhouette.',
-      bio: 'Legendary cores deliberately sculpt elemental silhouettes — crests, thicker arms, living icons — while remaining slime-bodied, never true hard-realm flesh. Keepers speak their names in Chronicle entries that outlast single campaigns.'
+      blurb: 'Named legend with an Ascended elemental silhouette.',
+      bio: 'Legendary cores hold an Ascended form: a shaped torso, arms, and element armor or crown pieces, all still gel. At five awakenings they become Shape-Bound, a near-humanoid gel figure, never true hard-realm flesh. Keepers speak their names in Chronicle entries that outlast single campaigns.'
     },
     Mythic: {
-      blurb: 'Peak form control; mythic shaped presence near the Primordial Gel.',
-      bio: 'Mythic gel bends its mass into complex shapes at will — rarely near-humanoid, always gel at the core. They appear near Origin echoes and Void Tower floors where the Softened Realms remember how softness began.'
+      blurb: 'Once-per-era gel, Shape-Bound by default.',
+      bio: 'Mythic gel arrives Shape-Bound: a near-humanoid figure of face, hands, and drips, always gel at the core. They appear near Origin echoes and Void Tower floors where the Softened Realms remember how softness began.'
     }
   };
 
@@ -95,6 +95,16 @@
    * Build multi-part champion lore from element pack + rarity + form.
    * Ensures role/personality/bio fields and combined bio length for UI + tests.
    */
+  /** Named Epic / Legendary / Mythic hero on this unit (by heroId), else null. */
+  function namedHeroFor(slime) {
+    if (!slime || !slime.heroId) return null;
+    var HR = global.SR_HERO_ROSTER || null;
+    if (!HR && typeof require !== 'undefined') {
+      try { HR = require('./heroRoster.js'); } catch (e) { HR = null; }
+    }
+    return HR && HR.getHeroById ? HR.getHeroById(slime.heroId) : null;
+  }
+
   function buildChampionLore(slime, elementLore, rarityLore, resolveFormTier) {
     if (!slime) return null;
     var el = elementLore || {};
@@ -111,6 +121,35 @@
       : 'Classic blobby gel';
     var role = el.role || 'Wild gel';
     var personality = el.personality || 'Uncharted mood';
+    var named = namedHeroFor(slime);
+    if (named) {
+      var nBio = (named.bio + ' ' + (el.extended || el.blurb || '')).replace(/\s+/g, ' ').trim();
+      var sigLine = named.signature && named.signature.name
+        ? named.signature.name + (named.signature.text ? ': ' + named.signature.text : '')
+        : (el.signature || 'Gel Strike');
+      return {
+        heroId: named.id,
+        named: true,
+        epithet: named.epithet || '',
+        heroTitle: named.title || '',
+        elementTitle: el.title || (slime.element || 'Gel'),
+        role: named.role || role,
+        personality: personality,
+        blurb: named.epithet || el.blurb || '',
+        extended: el.extended || el.blurb || '',
+        signature: sigLine,
+        signatureSkill: named.signature || null,
+        affinity: el.affinity || 'Uncharted',
+        rarityBlurb: rar.blurb,
+        championBio: nBio,
+        history: nBio,
+        bio: nBio,
+        formText: formText,
+        form: form,
+        rarity: slime.rarity || 'Common',
+        nameLine: named.name + ' — ' + (named.epithet || '')
+      };
+    }
     var history =
       (el.extended || el.blurb || 'An unclassified gel signature walks the Softened Realms.') +
       ' ' +

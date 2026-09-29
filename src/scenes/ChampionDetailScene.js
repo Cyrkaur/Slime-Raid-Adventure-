@@ -86,10 +86,12 @@
       });
 
       // Name plate under stage (Raid-style identity block)
-      this.add.text(stageX, h * 0.62, champ.name, {
+      const namePlate = this.add.text(stageX, h * 0.62, champ.name, {
         fontFamily: 'Georgia, serif', fontSize: '26px', color: '#f4ffe8',
         stroke: '#000', strokeThickness: 5
       }).setOrigin(0.5).setDepth(14);
+      // Named legends can be long ("The First Rain That Had a Name"): shrink to fit
+      for (let fs = 24; namePlate.width > stageW * 0.94 && fs >= 15; fs -= 2) namePlate.setFontSize(fs);
       // Fixed rarity stars: purple = evolved, gold = not yet
       this._drawStarRow(stageX, h * 0.658, baseStars, purpleStars, 22);
       this.add.text(stageX, h * 0.695, champ.rarity.toUpperCase() +
@@ -102,6 +104,12 @@
         champ.element + '  ·  ' + formLabel + (inParty ? '  ·  ★ Party' : ''), {
           fontFamily: 'system-ui', fontSize: '13px', color: '#a8e0c0'
         }).setOrigin(0.5).setDepth(14);
+      if (lore && lore.named && lore.epithet) {
+        this.add.text(stageX, h * 0.80, '“' + lore.epithet + '”', {
+          fontFamily: 'Georgia, serif', fontSize: '13px', color: '#f3e3b0', fontStyle: 'italic',
+          align: 'center', wordWrap: { width: stageW * 0.9 }
+        }).setOrigin(0.5).setDepth(14);
+      }
       if (lore) {
         this.add.text(stageX, h * 0.76, (lore.role || '') + '  ·  ' + (lore.personality || ''), {
           fontFamily: 'system-ui', fontSize: '12px', color: '#c8ddc8',
