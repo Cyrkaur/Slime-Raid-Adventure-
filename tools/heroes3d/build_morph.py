@@ -63,8 +63,9 @@ for v in bm.verts:
         # straw bee skep: stacked horizontal ridge rings up the dome
         zn = (zz + ZB) / (P['ztop'] + ZB)
         if 0.18 < zn < 0.97:
-            rid = max(0.0, math.sin(zn * math.pi * 11.0)) ** 1.6
-            co.x *= 1 + 0.045 * rid; co.y *= 1 + 0.045 * rid
+            rid = abs(math.sin(zn * math.pi * 7.0)) ** 0.45      # 7 fat coils, narrow grooves between
+            k_ = 1 + 0.10 * rid - 0.06
+            co.x *= k_; co.y *= k_
     co.x += 0.04 * max(0, z) ** 1.5
     n = _nz.noise(d * 1.7 + Vector((SEED * 3.1, 0, 0)))
     co += Vector((x, y, 0.4 * z)) * 0.028 * n
@@ -156,25 +157,16 @@ for i, (az, zf, w) in enumerate(DRIPS):
 # ---------------- hero hooks (gel parts that fuse into the body) ----------------
 CREST_MERGE = []   # gel fused into body but weighted to the crest bone (above the head)
 if K['hook'] == 'canoe':
-    # lower body flares into a shallow flat-bottomed canoe hull, bow + stern upturned. Long axis runs left/right
-    # (across the fight camera) so the upturned bow never climbs into the face or reads as a snout.
-    bm_ = bmesh.new(); bmesh.ops.create_uvsphere(bm_, u_segments=40, v_segments=20, radius=1.0)
-    for v in bm_.verts:
-        x, y, z = v.co; zz = z * (0.22 if z < 0 else 0.10)
-        zz += 0.22 * abs(x) ** 4.0                     # upturned ends
-        v.co = Vector((x * 0.98, y * 0.58 * (1 - 0.35 * abs(x) ** 2), max(-0.17, zz) + 0.18))
-    me_ = bpy.data.meshes.new('Hull'); bm_.to_mesh(me_); bm_.free()
-    MERGE.append(link(bpy.data.objects.new('Hull', me_))); me_.materials.append(M_BODY)
-    # right arm ends in a broad oar blade (gel)
-    tip = ARM_PTS['R'][3]
-    MERGE.append(uvs('Oar', tip + Vector((-0.09, -0.04, -0.12)), (0.035, 0.12, 0.21), M_BODY, 20, 12, rot=(0.25, 0.0, 0.35)))
-    MERGE.append(curve_tube('OarNeck', [(tip, 1.0), (tip + Vector((-0.06, -0.03, -0.06)), 0.7)], 0.05, M_BODY, res=4))
+    # right arm flattens into a broad paddle blade held out in front of the hull (thin toward the camera)
+    tip = ARM_PTS['R'][3]; bc = tip + Vector((0.02, -0.24, -0.16))
+    MERGE.append(curve_tube('OarNeck', [(tip, 1.0), (tip + Vector((0.01, -0.10, -0.05)), 0.8), (bc + Vector((0, 0, 0.20)), 0.55)], 0.06, M_BODY, res=6))
+    MERGE.append(uvs('Oar', bc, (0.15, 0.04, 0.27), M_BODY, 24, 14, rot=(0.0, -0.18, 0.0)))
 elif K['hook'] == 'brazier':
     # tall narrow torch-cone flame rising from the top (gel; hot tip via the fire kit's tip glow)
-    b0 = Vector((0.0, 0.04, H - 0.14))
-    CREST_MERGE.append(curve_tube('Torch', [(b0, 1.5), (b0 + Vector((0.02, 0, 0.20)), 1.05), (b0 + Vector((-0.03, 0, 0.42)), 0.62),
-                                             (b0 + Vector((0.02, 0, 0.62)), 0.28), (b0 + Vector((0.00, 0, 0.78)), 0.03)], 0.13, M_BODY, res=8))
-    for i, (ox, hgt) in enumerate([(0.20, 0.26), (-0.21, 0.24)]):
+    b0 = Vector((0.0, 0.04, H - 0.16))
+    CREST_MERGE.append(curve_tube('Torch', [(b0, 1.6), (b0 + Vector((0.0, 0, 0.26)), 1.25), (b0 + Vector((-0.02, 0, 0.55)), 0.85),
+                                             (b0 + Vector((0.02, 0, 0.82)), 0.45), (b0 + Vector((-0.01, 0, 1.02)), 0.16), (b0 + Vector((0.0, 0, 1.12)), 0.02)], 0.15, M_BODY, res=8))
+    for i, (ox, hgt) in enumerate([(0.20, 0.36), (-0.21, 0.32)]):
         bb = Vector((ox, 0.10, H - 0.20))
         MERGE.append(curve_tube('Lick%d' % i, [(bb, 1.1), (bb + Vector((ox * 0.3, 0, hgt * 0.5)), 0.6), (bb + Vector((ox * 0.5, 0, hgt)), 0.05)], 0.08, M_BODY, res=5))
 elif K['hook'] == 'skep':
@@ -233,66 +225,99 @@ elif EL == 'fire':
         r_ = rng.uniform(0.014, 0.03); BODYO.append(uvs('Ember%d' % i, q, (r_, r_, r_ * 1.4), M_EM, 7, 4))
 elif EL == 'plant':
     M_SP = mat('Spore', (0.85, 1.0, 0.55), 0.4, emit=(0.6, 0.9, 0.3))
-    # gel twist (Comb): hexagonal honeycomb cells suspended around the amber honey core
-    M_COMB = mat('Orn_Comb', (1.0, 0.66, 0.16), 0.35, emit=(1.0, 0.55, 0.08), estr=0.9)
-    for i, q in enumerate(inside_pts(15, 0.50, H * 0.14, H * 0.66, 0.075)):
-        BODYO.append(cyl('Comb%d' % i, q, rng.uniform(0.055, 0.075), 0.04, M_COMB, verts=6, rot=(rng.uniform(-1, 1), rng.uniform(-1, 1), rng.uniform(0, 3))))
-
+    # gel twist (Comb): a glowing honeycomb panel in the belly, facing the camera behind a clear gel window
+    M_COMB = mat('Orn_Comb', (1.0, 0.62, 0.12), 0.35, emit=(1.0, 0.55, 0.06), estr=1.6)
+    M_WAX = mat('Orn_Wax', (0.55, 0.30, 0.06), 0.5)
+    cr = 0.062; cz = H * 0.24; cx0 = -0.24     # honeycomb patch on the front-left flank, clear of the mouth
+    pf, nf = surf(Vector((0, -1, 0)), Vector((0, 0, cz)))
+    cy_ = pf.y + 0.10
+    for row in range(-1, 2):
+        for col in range(-2, 3):
+            dx = (col + (0.5 if row % 2 else 0)) * cr * 1.78; x_ = cx0 + dx; z_ = cz + row * cr * 1.55
+            if (dx / 0.20) ** 2 + ((z_ - cz) / 0.15) ** 2 > 1.0: continue
+            # each cell sits just under the skin (thin gel over it), facing out along the local normal
+            az = -0.42 + dx / 0.62     # azimuth around the dome, front-left
+            ps, ns = surf(Vector((math.sin(az), -math.cos(az), 0)), Vector((0, 0, z_)))
+            if ps is None: continue
+            cc = ps + ns * 0.006     # proud of the skin so the glow reads at fight distance
+            q_ = ns.to_track_quat('Z', 'Y').to_euler()
+            BODYO.append(cyl('Comb_%d_%d' % (row, col), cc, cr * 0.84, 0.03, M_COMB, verts=6, rot=(q_.x, q_.y, q_.z)))
+    BODYO.append(uvs('CombBack', Vector((math.sin(-0.42) * 0.34, -math.cos(-0.42) * 0.34, cz)), (0.20, 0.04, 0.16), M_WAX, 20, 10))
 # ---------------- ornaments (separate, authored colours) ----------------
 if K['hook'] == 'canoe':
-    M_KELP = mat('Orn_Kelp', (0.16, 0.34, 0.12), 0.6)
-    M_SHELL = mat('Orn_Shell', (1.0, 0.82, 0.74), 0.35)
-    # kelp-rope sash tied diagonally across the front (right shoulder -> left hip), hugging the surface
-    sp = []
-    for k in range(9):
-        t = k / 8; ang = FRONT + (-0.85 + 1.7 * t); z = H * (0.27 - 0.17 * t)
-        p, n = surf(Vector((math.cos(ang), math.sin(ang), 0)), Vector((0, 0, z))); sp.append((p + n * 0.012, 1.0))
-    BODYO.append(curve_tube('Sash', sp, 0.03, M_KELP, res=4, bres=1))
-    knot = sp[5][0]
-    BODYO.append(uvs('SashKnot', knot, (0.035, 0.03, 0.03), M_KELP, 10, 6))
-    BODYO.append(curve_tube('CharmCord', [(knot, 1.0), (knot + Vector((0.005, -0.02, -0.06)), 1.0)], 0.006, M_KELP, res=3, bres=1))
-    sh = cyl('ShellCharm', knot + Vector((0.005, -0.025, -0.085)), 0.03, 0.035, M_SHELL, verts=10, r2=0.004, rot=(math.pi, 0, 0)); BODYO.append(sh)
+    M_WOOD = mat('Orn_Wood', (0.22, 0.10, 0.035), 0.6)
+    M_GUN = mat('Orn_Gunwale', (0.16, 0.07, 0.025), 0.5)
+    M_STRIPE = mat('Orn_Stripe', (0.95, 0.92, 0.82), 0.5)
+    # wooden canoe the gel sits in: long axis left/right, pointed bow + stern that sweep up, round bottom, gunwale rim
+    L_ = 1.08; NU, NV = 44, 14
+    def cw(u): return max(0.004, 0.74 * (1 - abs(u) ** 1.7) ** 0.85)        # half-width (pointed ends)
+    def ct(u): return 0.30 + 0.30 * abs(u) ** 3.2                            # gunwale height (upswept ends)
+    def cd(u): return 0.29 * (1 - abs(u) ** 2.2) ** 0.55 + 0.015             # depth below gunwale
+    bmh = bmesh.new(); grid = []
+    for i in range(NU + 1):
+        u = -1 + 2 * i / NU; row = []
+        for j in range(NV + 1):
+            th = math.pi * j / NV
+            row.append(bmh.verts.new((u * L_, cw(u) * math.cos(th), ct(u) - cd(u) * math.sin(th) ** 0.6)))
+        grid.append(row)
+    for i in range(NU):
+        for j in range(NV):
+            bmh.faces.new((grid[i][j], grid[i + 1][j], grid[i + 1][j + 1], grid[i][j + 1]))
+        bmh.faces.new((grid[i][NV], grid[i + 1][NV], grid[i + 1][0], grid[i][0]))   # deck (hidden under the gel mid-ships)
+    bmesh.ops.recalc_face_normals(bmh, faces=bmh.faces[:])
+    meh = bpy.data.meshes.new('Canoe'); bmh.to_mesh(meh); bmh.free()
+    for p_ in meh.polygons: p_.use_smooth = True
+    canoe = link(bpy.data.objects.new('Canoe', meh)); meh.materials.append(M_WOOD); BODYO.append(canoe)
+    for sd in (1, -1):
+        pts_ = [(Vector((u * L_, sd * cw(u), ct(u) + 0.01)), 1.0) for u in [-1 + 2 * k / 16 for k in range(17)]]
+        BODYO.append(curve_tube('Gunwale%d' % (sd > 0), pts_, 0.032, M_GUN, res=4, bres=2))
+        # pale paint stripe along each flank so the hull shape reads at fight distance
+        st_ = [(Vector((u * L_, sd * cw(u) * 1.01, ct(u) - cd(u) * 0.35)), 1.0) for u in [-0.9 + 1.8 * k / 14 for k in range(15)]]
+        BODYO.append(curve_tube('Stripe%d' % (sd > 0), st_, 0.018, M_STRIPE, res=4, bres=1))
+    for sd in (1, -1):   # bow + stern posts
+        BODYO.append(uvs('Post%d' % (sd > 0), Vector((sd * L_ * 1.0, 0, ct(1.0) + 0.02)), (0.04, 0.035, 0.05), M_GUN, 10, 6))
 elif K['hook'] == 'brazier':
-    M_IRON = mat('Orn_Iron', (0.10, 0.09, 0.085), 0.55, metal=0.8)
-    M_RAG = mat('Orn_Rag', (0.85, 0.18, 0.10), 0.8)
+    M_IRON = mat('Orn_Iron', (0.16, 0.14, 0.13), 0.5, metal=0.75)
+    M_RAG = mat('Orn_Rag', (1.0, 0.10, 0.05), 0.7, emit=(1.0, 0.08, 0.02), estr=0.35)
     # soot-black iron brazier bowl ringing the upper body, below the eyes; four short decorative legs
-    zb = H * 0.20; zt = H * 0.37
+    zb = H * 0.15; zt = H * 0.40
     pr0, _ = surf(Vector((1, 0, 0)), Vector((0, 0, zb))); pr1, _ = surf(Vector((1, 0, 0)), Vector((0, 0, zt)))
     r0 = abs(pr0.x) + 0.03; r1 = abs(pr1.x) + 0.05
-    prof = [(r0, zb), (r0 + 0.025, zb + 0.02), ((r0 + r1) / 2 + 0.05, (zb + zt) / 2), (r1 + 0.05, zt - 0.01), (r1 + 0.075, zt), (r1 + 0.06, zt + 0.018), (r1 + 0.02, zt + 0.012),
+    prof = [(r0, zb), (r0 + 0.05, zb + 0.02), ((r0 + r1) / 2 + 0.09, (zb + zt) / 2), (r1 + 0.09, zt - 0.03), (r1 + 0.13, zt - 0.01), (r1 + 0.13, zt + 0.035), (r1 + 0.02, zt + 0.03),
             ((r0 + r1) / 2 + 0.02, (zb + zt) / 2), (r0 - 0.01, zb + 0.01), (r0, zb)]
     bowl = lathe('Brazier', prof, M_IRON, seg=44); BODYO.append(bowl)
     for i in range(4):
         ag = math.radians(45 + 90 * i); rr = (r0 + r1) / 2 + 0.06
         c = Vector((math.cos(ag) * rr, math.sin(ag) * rr, zb - 0.02))
-        BODYO.append(cyl('BrazLeg%d' % i, c, 0.022, 0.12, M_IRON, verts=8, r2=0.012, rot=(math.sin(ag) * 0.35, -math.cos(ag) * 0.35, 0)))
-        BODYO.append(uvs('Rivet%d' % i, Vector((math.cos(ag + 0.78) * (r1 + 0.06), math.sin(ag + 0.78) * (r1 + 0.06), zt - 0.03)), (0.016, 0.016, 0.016), M_IRON, 8, 5))
+        BODYO.append(cyl('BrazLeg%d' % i, c, 0.034, 0.14, M_IRON, verts=8, r2=0.012, rot=(math.sin(ag) * 0.35, -math.cos(ag) * 0.35, 0)))
+        BODYO.append(uvs('Rivet%d' % i, Vector((math.cos(ag + 0.78) * (r1 + 0.06), math.sin(ag + 0.78) * (r1 + 0.06), zt - 0.03)), (0.026, 0.026, 0.026), M_IRON, 8, 5))
     # knotted signal rag on the left arm
     ap = ARM_PTS['L'][2]
-    ARML.append(lathe('RagBand', [(0.098, -0.032), (0.108, 0.0), (0.098, 0.032)], M_RAG, seg=18, loc=tuple(ap)))
+    ARML.append(lathe('RagBand', [(0.098, -0.06), (0.114, 0.0), (0.098, 0.06)], M_RAG, seg=18, loc=tuple(ap)))
     ARML[-1].rotation_euler = (0, math.radians(68), 0)
-    ARML.append(uvs('RagKnot', ap + Vector((0.0, -0.10, 0.02)), (0.03, 0.025, 0.03), M_RAG, 10, 6))
-    for j, (dx, dz) in enumerate([(0.03, -0.09), (-0.02, -0.08)]):
-        ARML.append(uvs('RagTail%d' % j, ap + Vector((dx, -0.11, dz)), (0.018, 0.008, 0.05), M_RAG, 10, 6, rot=(0.2, 0.3 * (1 - 2 * j), 0)))
+    ARML.append(uvs('RagKnot', ap + Vector((0.0, -0.105, 0.02)), (0.05, 0.04, 0.05), M_RAG, 10, 6))
+    for j, (dx, dz) in enumerate([(0.05, -0.15), (-0.04, -0.13)]):
+        ARML.append(uvs('RagTail%d' % j, ap + Vector((dx, -0.12, dz)), (0.035, 0.012, 0.11), M_RAG, 10, 6, rot=(0.2, 0.3 * (1 - 2 * j), 0)))
 elif K['hook'] == 'skep':
-    M_CLOV = mat('Orn_Clover', (1.0, 0.50, 0.72), 0.6, emit=(1.0, 0.35, 0.6), estr=0.25)
-    M_CLEAF = mat('Orn_CloverLeaf', (0.20, 0.55, 0.16), 0.6)
+    M_STRAW = mat('Orn_Straw', (0.86, 0.66, 0.30), 0.7)
+    M_BEE = mat('Orn_Bee', (1.0, 0.78, 0.10), 0.45, emit=(1.0, 0.6, 0.0), estr=0.25)
+    M_BSTR = mat('Orn_BeeStripe', (0.05, 0.04, 0.03), 0.5)
+    M_WING = mat('Orn_Wing', (0.92, 0.97, 1.0), 0.2, emit=(0.8, 0.9, 1.0), estr=0.3)
+    # straw knob at the crown of the skep
+    HEAD.append(uvs('SkepKnob', Vector((0.0, 0.0, HT + 0.02)), (0.09, 0.09, 0.06), M_STRAW, 14, 8))
+    # three chunky cartoon bees on the orbit bone
+    for i in range(3):
+        ag = 2 * math.pi * i / 3 + 0.5; rr = P['rx'] + 0.30; c = Vector((math.cos(ag) * rr, math.sin(ag) * rr, H * (0.62 + 0.14 * (i - 1))))
+        yaw_ = ag + math.pi / 2
+        ORBIT.append(uvs('Bee%d' % i, c, (0.075, 0.05, 0.05), M_BEE, 12, 8, rot=(0, 0, yaw_)))
+        for k in (-1, 1):
+            ORBIT.append(uvs('BeeBand%d_%d' % (i, k), c + Vector((math.cos(yaw_) * 0.025 * k, math.sin(yaw_) * 0.025 * k, 0)), (0.014, 0.053, 0.053), M_BSTR, 10, 6, rot=(0, 0, yaw_)))
+        for k in (-1, 1):
+            ORBIT.append(uvs('BeeWing%d_%d' % (i, k), c + Vector((-math.sin(yaw_) * 0.04 * k, math.cos(yaw_) * 0.04 * k, 0.05)), (0.035, 0.05, 0.008), M_WING, 10, 5, rot=(0.5 * k, 0, yaw_)))
     M_MOTE = mat('Spore', (1.0, 0.92, 0.45), 0.4, emit=(1.0, 0.8, 0.3))
-    # clover-flower crown around the top of the dome
-    for i in range(7):
-        ag = 2 * math.pi * i / 7 + 0.2; zc = HT - 0.10
-        p, n = surf(Vector((math.cos(ag), math.sin(ag), 0)), Vector((0, 0, zc)))
-        if p is None: continue
-        c = p + n * 0.03 + Vector((0, 0, 0.02))
-        for j2 in range(3):   # clover head = a tight cluster of little pink florets, not one bead
-            a2 = ag + 2.1 * j2
-            HEAD.append(uvs('Clover%d_%d' % (i, j2), c + Vector((math.cos(a2) * 0.022, math.sin(a2) * 0.022, 0.012 * j2)), (0.03, 0.03, 0.034), M_CLOV, 10, 6))
-        for j in range(3):
-            aj = ag + (j - 1) * 0.7
-            HEAD.append(uvs('CLeaf%d_%d' % (i, j), p + n * 0.01 + Vector((math.cos(aj) * 0.05, math.sin(aj) * 0.05, -0.01)), (0.055, 0.04, 0.01), M_CLEAF, 10, 5, rot=(0, 0.3, aj)))
     # glowing pollen motes orbiting like bees (orbit bone spins them)
-    for i in range(5):
-        ag = 2 * math.pi * i / 5; rr = P['rx'] + 0.26 + 0.05 * (i % 2)
+    for i in range(3):
+        ag = 2 * math.pi * i / 3 + 1.55; rr = P['rx'] + 0.24 + 0.05 * (i % 2)
         ORBIT.append(uvs('Mote%d' % i, Vector((math.cos(ag) * rr, math.sin(ag) * rr, H * (0.55 + 0.12 * math.sin(ag * 2)))), (0.028, 0.028, 0.028), M_MOTE, 10, 6))
 if EL == 'water' and K.get('crest') == 'water':
     pass

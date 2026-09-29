@@ -28,7 +28,7 @@ import * as SkeletonUtils from '../../vendor/three-addons-g/utils/SkeletonUtils.
   var HERO_MODELS = { water_epic_pell: 1, fire_epic_brann: 1, plant_epic_comb: 1 };
   // Per-hero overrides on top of the element PROPS (kit colours that the element default would fight).
   var HERO_KITS = {
-    plant_epic_comb: { core: 0xffb030, coreGlow: 0.9 },
+    plant_epic_comb: { core: 0xffb030, coreGlow: 1.1, trans: 0.93, attenDist: 0.55, thick: 0.8, cloud: 0.04, moss: 0.22, sss: 0.07 },  // clearer window onto the honeycomb
     fire_epic_brann: { coreGlow: 0.85 }
   };
   var CLIPS = ['idle', 'hop', 'attack', 'cast', 'hit', 'faint'];

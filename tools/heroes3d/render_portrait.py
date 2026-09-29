@@ -2,7 +2,9 @@
 Fixed camera + key/rim/fill light rig, transparent-background PNG. One render per form tier GLB
 (Epic = morph body today; Legendary ascended / Mythic humanoid GLBs get the same call).
 Usage: Blender -b -P render_portrait.py -- <in.glb> <out.png> [size=1024]
-Serif paint-overs start from this PNG. Gel shading here is Blender's, not the in-game shader."""
+Serif paint-overs start from this PNG. Gel shading here is Blender's, not the in-game shader.
+DEPRECATED for shipped portraits (Reed sit, Sep 28): use tools/heroes3d/portrait_capture.js, which renders
+with the in-game gel shader and eye tiers. Kept only as a fallback."""
 import bpy, sys, math
 from mathutils import Vector
 a = sys.argv[sys.argv.index('--') + 1:]
