@@ -43,7 +43,7 @@ Hard-refresh after `?v=` bumps. **Not** `file://`.
 
 - Paid gacha / live-ops / accounts  
 - Full RSL clone or new game modes for parity with HTML idle-march  
-- Godot rewrite or GLB-as-default combat  
+- Godot rewrite  
 - Art flipbook VFX Phase D stretch until desktop ships  
 - Steam achievements before installable build  
 
@@ -84,6 +84,8 @@ Core stack and loop are **feature-complete enough to package**:
 - Combat: affinity, set bonuses, cast spool, VFX A–C + kit recipes, Raid power score, 250 HP pips  
 - Raid tutorial · Haven kit · first-win buddy · mythic evolve flourish · offline vendor libs  
 - Procedural audio bus + ⚙ Sound · UI ink parity · smoke checklist  
+- Hero design (3D gels, forms, eyes, element properties): `docs/HERO_DESIGN.md`  
+- Hero roster (species lineages, 48 named Epic / Legendary / Mythic heroes): `docs/HERO_ROSTER.md`, data in `src/data/heroRoster.js`  
 
 Long inventory: git history + section “Shipped milestones” archive below if needed. **New sessions start at §2.**
 
@@ -137,6 +139,8 @@ Stars/evolve · gear drops/enhance/2pc-4pc · pre-battle · multi-wave dungeons 
 | `docs/COMBAT_VFX_PLAN.md` | Only if combat VFX is the active C-item (it is not) |
 | `SHARE.md` | Friend zip instructions |
 | `FEATURE_PARITY.md` | Mode inventory (auto) |
+| `docs/HERO_DESIGN.md` | 3D heroes: forms, eyes, gel by element, quality gates |
+| `docs/HERO_ROSTER.md` | Named heroes and species looks (source for `src/data/heroRoster.js`) |
 
 ---
 
