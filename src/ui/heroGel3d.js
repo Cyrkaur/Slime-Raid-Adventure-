@@ -23,6 +23,14 @@ import * as SkeletonUtils from '../../vendor/three-addons-g/utils/SkeletonUtils.
   if (!THREE) { console.warn('[Hero3D] no global THREE'); return; }
 
   var PILOTS = { water: 1, fire: 1, plant: 1 };
+  // Named heroes with their own morph-body GLB (assets/models/heroes/hero_<heroId>[_lod1|_lod2].glb).
+  // Epic batch 1 (R5a pilot trio). Everyone else keeps the element gel.
+  var HERO_MODELS = { water_epic_pell: 1, fire_epic_brann: 1, plant_epic_comb: 1 };
+  // Per-hero overrides on top of the element PROPS (kit colours that the element default would fight).
+  var HERO_KITS = {
+    plant_epic_comb: { core: 0xffb030, coreGlow: 0.9 },
+    fire_epic_brann: { coreGlow: 0.85 }
+  };
   var CLIPS = ['idle', 'hop', 'attack', 'cast', 'hit', 'faint'];
   /**
    * Per-element slime properties: material AND motion.
@@ -113,6 +121,14 @@ import * as SkeletonUtils from '../../vendor/three-addons-g/utils/SkeletonUtils.
   function isPilot(element) { return !!PILOTS[elKey(element)]; }
   function lodSuffix(q) { return q === 'low' ? '_lod2' : (q === 'med' ? '_lod1' : ''); }
   function urlFor(element, q) { return 'assets/models/gel/gel_' + elKey(element) + lodSuffix(q) + '.glb'; }
+  function heroKey(unit) {
+    var id = unit && (unit.heroId || (unit.slime && unit.slime.heroId));
+    return id && HERO_MODELS[id] ? id : null;
+  }
+  function hasModel(unit) { return !!unit && (!!heroKey(unit) || isPilot(unit.element)); }
+  function heroUrl(id, q) { return 'assets/models/heroes/hero_' + id + lodSuffix(q) + '.glb'; }
+  /** GLB for this unit: its named-hero body when it has one, else the element gel. */
+  function modelUrl(unit, q) { var h = heroKey(unit); return h ? heroUrl(h, q) : urlFor(unit.element, q); }
 
   function fetchBuf(url) {
     return fetch(new URL(url, window.location.href).href).then(function (r) {
@@ -172,9 +188,11 @@ import * as SkeletonUtils from '../../vendor/three-addons-g/utils/SkeletonUtils.
     var urls = [];
     (units || []).forEach(function (u) {
       if (!u || u.isFoe || u.isEnemy || u.enemyKind) return;
-      if (!isPilot(u.element)) return;
-      var url = urlFor(u.element, q);
+      if (!hasModel(u)) return;
+      var url = modelUrl(u, q);
       if (urls.indexOf(url) < 0) urls.push(url);
+      // element gel as the fallback body if a hero GLB fails
+      if (heroKey(u) && isPilot(u.element) && urls.indexOf(urlFor(u.element, q)) < 0) urls.push(urlFor(u.element, q));
     });
     if (!urls.length) return Promise.resolve({ hero3d: 0 });
     var t0 = performance.now();
@@ -327,6 +345,12 @@ import * as SkeletonUtils from '../../vendor/three-addons-g/utils/SkeletonUtils.
     var evo = unit.purpleStars != null ? unit.purpleStars : (unit.evolutionLevel || 0);
     evo = Math.max(0, Number(evo) || 0);
     return evo >= 3 ? 'top' : (evo >= 1 ? 'mid' : 'base');
+  }
+
+  // Named-hero bodies are sculpted with a defined socket + gel brow, so their eyes start at 'mid'.
+  function heroEyeTier(unit, opts, hk) {
+    var t = eyeTierFor(unit, opts);
+    return (hk && t === 'base' && !(opts && opts.eyeTier)) ? 'mid' : t;
   }
 
   var _eyeTex = Object.create(null), _eyeGeo = Object.create(null);
@@ -643,20 +667,23 @@ import * as SkeletonUtils from '../../vendor/three-addons-g/utils/SkeletonUtils.
 
   function makeFigure(T, unit, opts) {
     opts = opts || {};
-    if (!enabled() || !unit || !isPilot(unit.element)) return null;
+    if (!enabled() || !unit || !hasModel(unit)) return null;
     if (unit.isFoe || unit.isEnemy || unit.enemyKind) return null;
     var q = opts.quality || currentQuality();
-    var gltf = gltfCache[urlFor(unit.element, q)] || gltfCache[urlFor(unit.element, 'high')];
+    var hk = heroKey(unit);
+    var gltf = hk ? (gltfCache[heroUrl(hk, q)] || gltfCache[heroUrl(hk, 'high')]) : null;
+    if (!gltf) { hk = null; gltf = isPilot(unit.element) ? (gltfCache[urlFor(unit.element, q)] || gltfCache[urlFor(unit.element, 'high')]) : null; }
     if (!gltf) return null;
     var el = elKey(unit.element);
     var pr = propsFor(el);
+    if (hk && HERO_KITS[hk]) pr = Object.assign({}, pr, HERO_KITS[hk]);
     var look = pr;
     var rar = RARITY[unit.rarity] || RARITY.Common;
     var env = envFor(opts.renderer);
     var U = jigUniforms(pr);
     // Viscosity: scale the baked root squash in the clips once per GLB by this element's squash multiplier.
     if (!gltf.userData) gltf.userData = {};
-    if (gltf.userData.squashFor !== el) {
+    if (gltf.userData.squashFor !== el) { // (hero GLBs are single-element, so el is stable per GLB)
       var mul = pr.squash / (gltf.userData.squashMul || 1);
       (gltf.animations || []).forEach(function (clip) {
         clip.tracks.forEach(function (tr) {
@@ -725,6 +752,8 @@ import * as SkeletonUtils from '../../vendor/three-addons-g/utils/SkeletonUtils.
         m = new THREE.MeshStandardMaterial({ color: 0xff8cc6, emissive: new THREE.Color(0xff5fa8), emissiveIntensity: 0.12 + rar.trim * 0.4, roughness: 0.55 });
       } else if (name === 'Orn_Stem') {
         m = new THREE.MeshStandardMaterial({ color: 0x3f9a2c, roughness: 0.6 });
+      } else if (src && hk && /^Orn_/.test(name)) {
+        m = src.clone(); // named-hero kit (canoe, brazier iron, comb cells…): keep its authored colours
       } else if (src) {
         m = src.clone(); // e.g. CC0 monstera leaf (textured)
         if (m.emissive && rar.trim) { m.emissive.set(0x9cff6a); m.emissiveIntensity = rar.trim * 0.18; }
@@ -738,7 +767,7 @@ import * as SkeletonUtils from '../../vendor/three-addons-g/utils/SkeletonUtils.
     });
     if (!body) { console.warn('[Hero3D] no GelBody in', el); return null; }
 
-    var eyes = opts.legacyEyes ? null : makeEyes(model, pr, hiQ, env, mats, eyeTierFor(unit, opts));
+    var eyes = opts.legacyEyes ? null : makeEyes(model, pr, hiQ, env, mats, heroEyeTier(unit, opts, hk));
     var root = new THREE.Group();
     root.add(model);
 
@@ -836,7 +865,7 @@ import * as SkeletonUtils from '../../vendor/three-addons-g/utils/SkeletonUtils.
   }
 
   window.SR_HERO3D = {
-    enabled: enabled, isPilot: isPilot, preload: preload, ready: ready,
+    enabled: enabled, isPilot: isPilot, hasModel: hasModel, modelUrl: modelUrl, HERO_MODELS: HERO_MODELS, HERO_KITS: HERO_KITS, preload: preload, ready: ready,
     makeFigure: makeFigure, urlFor: urlFor, CLIPS: CLIPS, _cache: gltfCache, _failed: failed, _live: live, PROPS: PROPS, propsFor: propsFor, EXPR: EXPR, EYE_TIERS: EYE_TIERS, eyeTierFor: eyeTierFor
   };
   window.dispatchEvent(new Event('sr-hero3d-ready'));

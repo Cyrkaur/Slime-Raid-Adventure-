@@ -306,6 +306,7 @@
       element: slime.element || 'Earth',
       rarity: slime.rarity || 'Common',
       artVariant: slime.artVariant || null,
+      heroId: slime.heroId || null,
       isFoe: !!isFoe,
       // Hard-realm fantasy foes (not gel champions)
       isEnemy: !!(slime.isEnemy || slime.enemyKind),

@@ -3409,14 +3409,15 @@
     // Slime heroes 3D (pilots Water/Fire/Plant): skinned GLB + physical gel material.
     // Default for pilot allies; returns null (→ sprite path below) if disabled or not loaded.
     if (global.SR_HERO3D && typeof global.SR_HERO3D.makeFigure === 'function' &&
-        global.SR_HERO3D.isPilot(unit.element) && !unit.isFoe && !unit.isEnemy) {
+        (global.SR_HERO3D.hasModel ? global.SR_HERO3D.hasModel(unit) : global.SR_HERO3D.isPilot(unit.element)) &&
+        !unit.isFoe && !unit.isEnemy) {
       try {
         var hero = global.SR_HERO3D.makeFigure(THREE, unit, {
           renderer: _combatRenderer, quality: _combatQuality || 'high',
           shadows: _combatShadows, gelSize: gelSizeMult(unit)
         });
         if (hero) {
-          console.log('[Battle3D] hero3d', unit.element, unit.rarity || '');
+          console.log('[Battle3D] hero3d', unit.element, unit.rarity || '', unit.heroId || (unit.slime && unit.slime.heroId) || '');
           return hero;
         }
       } catch (eH) {
