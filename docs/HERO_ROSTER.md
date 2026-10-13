@@ -68,7 +68,7 @@ Morph base: blob body plus two semi-shaped gel tentacle arms, defined eye shape,
 *"The hilltop that shouted"*
 **Bio:** In the Age of Cracks, a hard-realm raid cut the signal chain along the Volcanic Wastes border. Brann climbed the dead signal hill and burned all night, loud and bright enough that every hamlet saw and fled in time. He has been proud and slightly hoarse ever since.
 **Role:** Nuker / Burst.
-**Signature skill:** *Beacon Roar*: a burst blast on one foe that also raises allies' turn meters.
+**Signature skill:** *Signal Flare*: a burst blast on one foe that also raises allies' turn meters.
 **Visual (Morph):**
 - **Hook:** sits inside an iron brazier-bowl collar ringing the upper body, with a tall narrow torch-cone flame rising from the top.
 - **Ornaments:** soot-black iron bowl with four short legs welded on as decoration; a knotted signal rag tied to one arm.

@@ -692,14 +692,18 @@
     Mythic: 6
   };
 
+  // One-body model (HERO_DESIGN / HERO_COUNT_PLAN, founder Oct 2 + Oct 9 2026):
+  // every hero is one connected body; a rarity step transforms the whole body
+  // along its element's growth chain; no jointless gel-lobe or tentacle arms.
   var RARITY_LORE = {
-    Common: { blurb: 'Everyday gel — soft blob, eager to grow.', bio: 'Common cores form freely in the wilds as simple blobby masses; little form control yet.', stars: 1 },
-    Uncommon: { blurb: 'A sharper spark of will and color.', bio: 'Uncommon slimes stay mostly blobby, with the first hints of stubby nubs and personality.', stars: 2 },
-    Rare: { blurb: 'Hardened by rare essence veins.', bio: 'Rare champions firm their affinity; some begin pushing soft blob-arms when stressed.', stars: 3 },
-    Epic: { blurb: 'Morph form control — clear blob-arms.', bio: 'Epic gel can hold semi-shaped tentacle arms while remaining a slime mass in battle, and rises to an Ascended shaped torso at three awakenings.', stars: 4 },
-    Legendary: { blurb: 'Named legend with an Ascended silhouette.', bio: 'Legendary cores hold an Ascended form (shaped torso, arms, element armor) and become Shape-Bound near-humanoid gel at five awakenings.', stars: 5 },
-    Mythic: { blurb: 'Once-per-era gel, Shape-Bound by default.', bio: 'Mythic gel arrives Shape-Bound: a near-humanoid gel figure with face, hands, and drips, always gel at the core.', stars: 6 }
+    Common: { blurb: 'Everyday gel: the first step of its element.', bio: 'Common cores form freely in the wilds as one simple body that moves the way its element moves. This is the first step of its element growth chain.', stars: 1 },
+    Uncommon: { blurb: 'Grown further along its element.', bio: 'Uncommon slimes are the next step of their element: the whole body grows the way the element grows, never the same blob with spikes added.', stars: 2 },
+    Rare: { blurb: 'Element control, held in one body.', bio: 'Rare champions hold their element past its basic limits for a moment, at a visible cost. Still one connected body, grown a step further along the element chain.', stars: 3 },
+    Epic: { blurb: 'Named hero on the morph body.', bio: 'Epic heroes are named. Each keeps one connected body with its own hook and props from its story, and moves up to a shaped body at three awakenings, hook carried over.', stars: 4 },
+    Legendary: { blurb: 'Named legend in its true shape.', bio: 'Legendary heroes hold their own true shape from the first day. Awakenings grow that shape, and at five awakenings the whole body transforms into its Signature Form.', stars: 5 },
+    Mythic: { blurb: 'Once-per-era gel in its true shape.', bio: 'Mythic heroes hold their own true shape from the first day. Awakenings grow it, five awakenings bring a whole-body Signature Form, and six bring the Transcendent form.', stars: 6 }
   };
+
 
   /** Fixed base stars from rarity only (saved baseStars is rewritten on load). */
   function getBaseStars(champOrRarity) {
@@ -1212,37 +1216,38 @@
   }
 
   /**
-   * Form ladder (4 tiers, matches docs/HERO_DESIGN.md §2):
-   *   blob     — Common, Uncommon, most Rare
-   *   morph    — Epic, ~1 in 3 Rare, anything at evo 2+
-   *   ascended — Legendary, Epic at evo 3+
-   *   humanoid — Mythic, Legendary at evo 5+ (Shape-Bound)
-   * An explicit formTier wins; the legacy key 'shaped' maps to 'humanoid'.
+   * Form ladder, one-body model (HERO_DESIGN, HERO_COUNT_PLAN §3–§5, founder Oct 2 + Oct 9 2026):
+   *   blob         — every species (Common/Uncommon/Rare): one body, its element growth step
+   *   morph        — Epic, evo 0–2
+   *   ascended     — Epic, evo 3+ (hook and props carried over)
+   *   true         — Legendary / Mythic, evo 0–4: the hero's own true shape
+   *   signature    — Legendary / Mythic, evo 5: whole-body Signature Form
+   *   transcendent — Mythic, evo 6
+   * An explicit formTier wins; legacy 'humanoid' / 'shaped' map to 'true'.
    */
   function resolveFormTier(slime) {
     if (!slime) return 'blob';
-    if (slime.formTier === 'humanoid' || slime.formTier === 'shaped') return 'humanoid';
-    if (slime.formTier === 'ascended') return 'ascended';
-    if (slime.formTier === 'morph') return 'morph';
-    if (slime.formTier === 'blob') return 'blob';
+    var ft = slime.formTier;
+    if (ft === 'humanoid' || ft === 'shaped') return 'true';
+    if (ft === 'blob' || ft === 'morph' || ft === 'ascended' || ft === 'true' ||
+        ft === 'signature' || ft === 'transcendent') return ft;
     var r = slime.rarity || 'Common';
     var evo = slime.evolutionLevel || 0;
-    var seed = slime.id != null ? slime.id : (slime.name || slime.element || '0');
-    if (r === 'Mythic') return 'humanoid';
-    if (r === 'Legendary' && evo >= 5) return 'humanoid';
-    if (r === 'Legendary' || (r === 'Epic' && evo >= 3)) return 'ascended';
-    if (r === 'Epic' || evo >= 2) return 'morph';
-    // Some Rare begin forming blob-arms (~1 in 3), same as combat art
-    if (r === 'Rare') {
-      var h = 2166136261;
-      var s = String(seed);
-      for (var i = 0; i < s.length; i++) {
-        h ^= s.charCodeAt(i);
-        h = Math.imul(h, 16777619);
-      }
-      if (((h >>> 0) % 3) === 0) return 'morph';
-    }
+    if (r === 'Mythic') return evo >= 6 ? 'transcendent' : evo >= 5 ? 'signature' : 'true';
+    if (r === 'Legendary') return evo >= 5 ? 'signature' : 'true';
+    if (r === 'Epic') return evo >= 3 ? 'ascended' : 'morph';
     return 'blob';
+  }
+
+  function formTierText(form) {
+    return ({
+      transcendent: 'Transcendent form',
+      signature: 'Signature Form',
+      'true': 'True shape',
+      ascended: 'Shaped body',
+      morph: 'Morph body',
+      blob: 'Element body'
+    })[form] || 'Element body';
   }
 
   function getElementLore(element) {
@@ -1263,10 +1268,7 @@
       return SL.buildChampionLore(slime, el, rar, resolveFormTier);
     }
     var form = resolveFormTier(slime);
-    var formText = form === 'humanoid' ? 'Shape-bound mythic presence'
-      : form === 'ascended' ? 'Shaped form control'
-      : form === 'morph' ? 'Morphing blob-arms'
-      : 'Classic blobby gel';
+    var formText = formTierText(form);
     var championBio = (el.extended || el.blurb || '') + ' ' + (rar.bio || rar.blurb || '');
     championBio = championBio.trim();
     if (championBio.length < 120) {

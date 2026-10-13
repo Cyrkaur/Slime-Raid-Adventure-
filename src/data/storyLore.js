@@ -62,28 +62,28 @@
   /** Expanded rarity lore for multi-part champion bios. */
   var RARITY_LORE_EXTRA = {
     Common: {
-      blurb: 'Everyday gel — soft blob, eager to grow under a Keeper’s hand.',
-      bio: 'Common cores form freely in the Softened Realms as simple blobby masses with little form control. They learn fast when bonded and fail gently when pushed too hard by hard-realm geometry.'
+      blurb: 'Everyday gel, the first step of its element, eager to grow under a Keeper’s hand.',
+      bio: 'Common cores form freely in the Softened Realms as one simple body that moves the way its element moves: the first step of its element growth chain. They learn fast when bonded and fail gently when pushed too hard by hard-realm geometry.'
     },
     Uncommon: {
       blurb: 'A sharper spark of will, color, and half-remembered Element-song.',
-      bio: 'Uncommon slimes stay mostly blobby, with the first hints of stubby nubs and personality. Haven records say they choose Keepers as often as Keepers choose them.'
+      bio: 'Uncommon slimes are the next step of their element: the whole body grows the way the element grows, never the same blob with spikes added. Haven records say they choose Keepers as often as Keepers choose them.'
     },
     Rare: {
       blurb: 'Hardened by rare essence veins and longer soft seasons.',
-      bio: 'Rare champions firm their affinity; some begin pushing soft blob-arms when stressed. Their biographies already include a named place — a glade, a pass, a bog — where they first held shape.'
+      bio: 'Rare champions firm their affinity and can hold their element past its basic limits for a moment, at a visible cost, still in one connected body. Their biographies already include a named place — a glade, a pass, a bog — where they first held shape.'
     },
     Epic: {
-      blurb: 'Morph form control — clear blob-arms and battlefield will.',
-      bio: 'Epic gel can hold semi-shaped tentacle arms while remaining a slime mass in battle, and at three awakenings it rises into an Ascended form with a shaped torso. Softened Realms legends list them among Haven defenders who turned Void scouts back without losing their softness.'
+      blurb: 'Named hero on the morph body, with battlefield will.',
+      bio: 'Epic heroes are named: one connected body with a hook and props from their own story, moving up to a shaped body at three awakenings with the hook carried over. Softened Realms legends list them among Haven defenders who turned Void scouts back without losing their softness.'
     },
     Legendary: {
-      blurb: 'Named legend with an Ascended elemental silhouette.',
-      bio: 'Legendary cores hold an Ascended form: a shaped torso, arms, and element armor or crown pieces, all still gel. At five awakenings they become Shape-Bound, a near-humanoid gel figure, never true hard-realm flesh. Keepers speak their names in Chronicle entries that outlast single campaigns.'
+      blurb: 'Named legend in its own true shape.',
+      bio: 'Legendary cores hold their own true shape from the first day, always gel. Awakenings grow that shape, and at five awakenings the whole body transforms into its Signature Form. Keepers speak their names in Chronicle entries that outlast single campaigns.'
     },
     Mythic: {
-      blurb: 'Once-per-era gel, Shape-Bound by default.',
-      bio: 'Mythic gel arrives Shape-Bound: a near-humanoid figure of face, hands, and drips, always gel at the core. They appear near Origin echoes and Void Tower floors where the Softened Realms remember how softness began.'
+      blurb: 'Once-per-era gel in its own true shape.',
+      bio: 'Mythic gel arrives in its own true shape, always gel at the core: awakenings grow it, five bring a whole-body Signature Form, six the Transcendent form. They appear near Origin echoes and Void Tower floors where the Softened Realms remember how softness began.'
     }
   };
 
@@ -115,10 +115,8 @@
       bio: rarExtra.bio || rarBase.bio || rarBase.blurb || ''
     };
     var form = resolveFormTier ? resolveFormTier(slime) : 'blob';
-    var formText = form === 'humanoid' ? 'Shape-bound mythic presence'
-      : form === 'ascended' ? 'Shaped form control'
-      : form === 'morph' ? 'Morphing blob-arms'
-      : 'Classic blobby gel';
+    var formText = ({ transcendent: 'Transcendent form', signature: 'Signature Form', 'true': 'True shape',
+      ascended: 'Shaped body', morph: 'Morph body', blob: 'Element body' })[form] || 'Element body';
     var role = el.role || 'Wild gel';
     var personality = el.personality || 'Uncharted mood';
     var named = namedHeroFor(slime);

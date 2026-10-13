@@ -111,7 +111,7 @@
         "bio": "In the Age of Cracks, a hard-realm raid cut the signal chain along the Volcanic Wastes border. Brann climbed the dead signal hill and burned all night, loud and bright enough that every hamlet saw and fled in time. He has been proud and slightly hoarse ever since.",
         "role": "Nuker / Burst",
         "signature": {
-          "name": "Beacon Roar",
+          "name": "Signal Flare",
           "text": "A burst blast on one foe that also raises allies' turn meters.",
           "slot": null,
           "stub": true

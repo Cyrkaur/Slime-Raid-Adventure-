@@ -48,10 +48,8 @@
       const rarityColor = (DATA.getRarityColor && DATA.getRarityColor(champ.rarity)) || '#77ffaa';
       const lore = (DATA.getChampionLoreBlurb && DATA.getChampionLoreBlurb(champ)) || null;
       const form = (DATA.resolveFormTier && DATA.resolveFormTier(champ)) || 'blob';
-      const formLabel = form === 'humanoid' ? 'Mythic shape'
-        : form === 'ascended' ? 'Legendary shape'
-        : form === 'morph' ? 'Morph arms'
-        : 'Blob form';
+      const formLabel = ({ transcendent: 'Transcendent', signature: 'Signature Form', 'true': 'True shape',
+        ascended: 'Shaped body', morph: 'Morph body', blob: 'Element body' })[form] || 'Element body';
       const attrs = champ.attributes || (DATA.computeChampionAttributes && DATA.computeChampionAttributes(champ)) || {};
       const inParty = (state.partyIds || []).indexOf(champ.id) >= 0;
       const baseStars = (DATA.getBaseStars && DATA.getBaseStars(champ)) ||
