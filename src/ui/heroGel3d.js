@@ -125,10 +125,18 @@ import * as SkeletonUtils from '../../vendor/three-addons-g/utils/SkeletonUtils.
     var id = unit && (unit.heroId || (unit.slime && unit.slime.heroId));
     return id && HERO_MODELS[id] ? id : null;
   }
-  function hasModel(unit) { return !!unit && (!!heroKey(unit) || isPilot(unit.element)); }
+  // Species (Common/Uncommon/Rare, variant a) bodies inflated from the approved concept silhouettes (tools/heroes3d/build_species.py).
+  var SPECIES_MODELS = { water_common_a: 1, water_uncommon_a: 1, water_rare_a: 1, lightning_common_a: 1 };
+  function speciesKey(unit) {
+    if (!unit || heroKey(unit)) return null;
+    var k = elKey(unit.element) + '_' + String(unit.rarity || 'Common').toLowerCase() + '_' + String(unit.variant || 'a').toLowerCase();
+    return SPECIES_MODELS[k] ? k : null;
+  }
+  function speciesUrl(k, q) { return 'assets/models/species/sp_' + k + lodSuffix(q) + '.glb'; }
+  function hasModel(unit) { return !!unit && (!!heroKey(unit) || !!speciesKey(unit) || isPilot(unit.element)); }
   function heroUrl(id, q) { return 'assets/models/heroes/hero_' + id + lodSuffix(q) + '.glb'; }
   /** GLB for this unit: its named-hero body when it has one, else the element gel. */
-  function modelUrl(unit, q) { var h = heroKey(unit); return h ? heroUrl(h, q) : urlFor(unit.element, q); }
+  function modelUrl(unit, q) { var h = heroKey(unit), sk = speciesKey(unit); return h ? heroUrl(h, q) : (sk ? speciesUrl(sk, q) : urlFor(unit.element, q)); }
 
   function fetchBuf(url) {
     return fetch(new URL(url, window.location.href).href).then(function (r) {
@@ -192,7 +200,7 @@ import * as SkeletonUtils from '../../vendor/three-addons-g/utils/SkeletonUtils.
       var url = modelUrl(u, q);
       if (urls.indexOf(url) < 0) urls.push(url);
       // element gel as the fallback body if a hero GLB fails
-      if (heroKey(u) && isPilot(u.element) && urls.indexOf(urlFor(u.element, q)) < 0) urls.push(urlFor(u.element, q));
+      if ((heroKey(u) || speciesKey(u)) && isPilot(u.element) && urls.indexOf(urlFor(u.element, q)) < 0) urls.push(urlFor(u.element, q));
     });
     if (!urls.length) return Promise.resolve({ hero3d: 0 });
     var t0 = performance.now();
@@ -672,6 +680,9 @@ import * as SkeletonUtils from '../../vendor/three-addons-g/utils/SkeletonUtils.
     var q = opts.quality || currentQuality();
     var hk = heroKey(unit);
     var gltf = hk ? (gltfCache[heroUrl(hk, q)] || gltfCache[heroUrl(hk, 'high')]) : null;
+    var spk = hk ? null : speciesKey(unit);
+    if (!gltf && spk) gltf = gltfCache[speciesUrl(spk, q)] || gltfCache[speciesUrl(spk, 'high')] || null;
+    if (!gltf) spk = null;
     if (!gltf) { hk = null; gltf = isPilot(unit.element) ? (gltfCache[urlFor(unit.element, q)] || gltfCache[urlFor(unit.element, 'high')]) : null; }
     if (!gltf) return null;
     var el = elKey(unit.element);
@@ -706,7 +717,20 @@ import * as SkeletonUtils from '../../vendor/three-addons-g/utils/SkeletonUtils.
       o.castShadow = !!opts.shadows; o.receiveShadow = false;
       var src = o.material, name = (src && src.name) || '';
       var m, slime = false;
-      if (name === 'GelBody') {
+      if (name === 'GelBody' && spk && el === 'lightning') {
+        // Stormcore: emissive core with a soft falloff to the outline (no hard edge, no outline/cel line).
+        m = new THREE.MeshStandardMaterial({ color: 0x000000, emissive: new THREE.Color(0xffe46a), emissiveIntensity: 0.5 + rar.trim * 0.4,
+          roughness: 1, metalness: 0, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false });
+        m.onBeforeCompile = function (sh) {
+          sh.fragmentShader = sh.fragmentShader.replace('#include <dithering_fragment>',
+            '#include <dithering_fragment>\n' +
+            ' float ndv = abs(dot(normalize(normal), normalize(vViewPosition)));\n' +
+            ' gl_FragColor.rgb *= mix(0.55, 2.2, pow(ndv, 2.2)) * mix(vec3(1.0,0.78,0.22), vec3(1.0,1.0,0.9), pow(ndv, 3.0));\n' +
+            ' gl_FragColor.a = smoothstep(0.0, 0.55, ndv);');
+        };
+        m.name = 'StormGlow'; slime = true; // weightless: no surface jiggle (and keeps this shader hook)
+        if (!body || o.name === 'body') body = o;
+      } else if (name === 'GelBody') {
         m = new THREE.MeshPhysicalMaterial({
           color: pr.color, roughness: pr.rough, metalness: pr.metal,
           transmission: hiQ ? pr.trans : 0.0, thickness: pr.thick, ior: pr.ior,
@@ -779,6 +803,14 @@ import * as SkeletonUtils from '../../vendor/three-addons-g/utils/SkeletonUtils.
         blending: THREE.MultiplyBlending, premultipliedAlpha: false, toneMapped: false, fog: false
       })
     );
+    if (spk && el === 'lightning') { // hovers: a soft separate ground glow instead of a contact shadow
+      var gc = document.createElement('canvas'); gc.width = gc.height = 128; var gx = gc.getContext('2d');
+      var gg = gx.createRadialGradient(64, 64, 0, 64, 64, 64); gg.addColorStop(0, 'rgba(255,230,110,0.9)'); gg.addColorStop(1, 'rgba(255,200,60,0)');
+      gx.fillStyle = gg; gx.fillRect(0, 0, 128, 128);
+      shadow.material.dispose();
+      shadow.material = new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(gc), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false, fog: false });
+      shadow.scale.set(0.8, 0.45, 1);
+    }
     shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.035; shadow.renderOrder = 1;
     root.add(shadow);
 
@@ -838,7 +870,7 @@ import * as SkeletonUtils from '../../vendor/three-addons-g/utils/SkeletonUtils.
         spring.v += (-pr.stiff * spring.s - pr.damp * spring.v) * h;
         spring.s += spring.v * h;
         if (spring.s > 0.35) { spring.s = 0.35; spring.v = 0; } else if (spring.s < -0.3) { spring.s = -0.3; spring.v = 0; }
-        var sq = spring.s;
+        var sq = (spk && el === 'lightning') ? 0 : spring.s;
         model.scale.set(baseScale * (1 + sq * 0.55), baseScale * (1 - sq), baseScale * (1 + sq * 0.55));
         U.uTime.value += dt;
         U.uJigAmp.value = pr.jigAmp * (1 + Math.min(3, Math.abs(spring.v) * 0.5));
@@ -866,7 +898,7 @@ import * as SkeletonUtils from '../../vendor/three-addons-g/utils/SkeletonUtils.
 
   window.SR_HERO3D = {
     enabled: enabled, isPilot: isPilot, hasModel: hasModel, modelUrl: modelUrl, HERO_MODELS: HERO_MODELS, HERO_KITS: HERO_KITS, preload: preload, ready: ready,
-    makeFigure: makeFigure, urlFor: urlFor, CLIPS: CLIPS, _cache: gltfCache, _failed: failed, _live: live, PROPS: PROPS, propsFor: propsFor, EXPR: EXPR, EYE_TIERS: EYE_TIERS, eyeTierFor: eyeTierFor
+    makeFigure: makeFigure, SPECIES_MODELS: SPECIES_MODELS, speciesKey: speciesKey, urlFor: urlFor, CLIPS: CLIPS, _cache: gltfCache, _failed: failed, _live: live, PROPS: PROPS, propsFor: propsFor, EXPR: EXPR, EYE_TIERS: EYE_TIERS, eyeTierFor: eyeTierFor
   };
   window.dispatchEvent(new Event('sr-hero3d-ready'));
   console.log('[Hero3D] ready (pilots: water, fire, plant)');

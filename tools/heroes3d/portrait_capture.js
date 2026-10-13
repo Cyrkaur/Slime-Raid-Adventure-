@@ -8,8 +8,14 @@
   var T = window.THREE, H = window.SR_HERO3D, S = window.SR_STATE;
   var R = new T.WebGLRenderer({ antialias: true, alpha: false, preserveDrawingBuffer: true });
   R.setPixelRatio(1); R.setSize(SIZE, SIZE);
-  R.outputColorSpace = T.SRGBColorSpace; R.toneMapping = T.ACESFilmicToneMapping; R.toneMappingExposure = 1.0;
+  R.outputColorSpace = T.SRGBColorSpace; R.toneMapping = T.ACESFilmicToneMapping; R.toneMappingExposure = window.__PORTRAIT_EXPOSURE || 1.42; // = battle 'high' (PAINTOVER_STYLE §2.2)
+  // Camera presets (PAINTOVER_STYLE §2.3): all FOV 20°, yaw −20°.
+  var CAMS = { portrait: { margin: 1.12, h: 0.22, look: -0.02, aspect: 1 },
+    summon: { margin: 1.25, h: 0.10, look: 0.00, aspect: 0.75 },
+    collection: { margin: 1.30, h: 0.18, look: -0.02, aspect: 1 } };
+  var CAMLIST = window.__PORTRAIT_CAMS || [window.__PORTRAIT_CAM || 'portrait'];
   var units = HEROES.map(function (h) {
+    if (typeof h === 'object') return S.createChampion(h); // species: { element, rarity, ... }
     var el = h.split('_')[0]; el = el.charAt(0).toUpperCase() + el.slice(1);
     return S.createChampion({ element: el, rarity: 'Epic', level: 20, heroId: h });
   });
@@ -18,23 +24,24 @@
   function grab() { cx.clearRect(0, 0, SIZE, SIZE); cx.drawImage(R.domElement, 0, 0); return cx.getImageData(0, 0, SIZE, SIZE); }
   var out = {};
   for (var ui = 0; ui < units.length; ui++) {
-    for (var ti = 0; ti < TIERS.length; ti++) {
-      var u = units[ui], tier = TIERS[ti];
+    for (var ti = 0; ti < TIERS.length * CAMLIST.length; ti++) {
+      var u = units[ui], tier = TIERS[ti % TIERS.length], camName = CAMLIST[Math.floor(ti / TIERS.length)], CP = CAMS[camName] || CAMS.portrait;
+      var key0 = (u.heroId || (u.element + '_' + u.rarity + '_' + (u.variant || 'a'))) + '_' + tier + (camName === 'portrait' ? '' : '_' + camName);
       var sc = new T.Scene();
       sc.add(new T.HemisphereLight(0xd8ecff, 0x6a5a40, 1.0));
       var key = new T.DirectionalLight(0xfff1dc, 1.9); key.position.set(-2.2, 3.0, 2.6); sc.add(key);
       var fill = new T.DirectionalLight(0xcfe2ff, 0.5); fill.position.set(2.6, 0.8, 2.0); sc.add(fill);
       var rim = new T.DirectionalLight(0xe6f4ff, 1.6); rim.position.set(1.4, 2.2, -3.0); sc.add(rim);
       var fig = H.makeFigure(T, u, { renderer: R, quality: 'high', eyeTier: tier, faceCamYaw: 0 });
-      if (!fig) { out[u.heroId + '_' + tier] = null; continue; }
+      if (!fig) { out[key0] = null; continue; }
       if (fig.contactShadow) fig.contactShadow.visible = false;
       sc.add(fig.root);
       if (fig.eyes && fig.eyes.st) { fig.eyes.st.blinkIn = 99; fig.eyes.st.blinkT = -1; fig.eyes.st.glanceIn = 99; }
       for (var k = 0; k < 40; k++) fig.heroTick(1 / 60, [fig]);
       var box = new T.Box3().setFromObject(fig.model), c = box.getCenter(new T.Vector3()), sz = box.getSize(new T.Vector3());
-      var cam = new T.PerspectiveCamera(20, 1, 0.1, 100), span = Math.max(sz.y, sz.x, sz.z) * 1.12;
+      var cam = new T.PerspectiveCamera(20, 1, 0.1, 100), span = Math.max(sz.y, sz.x, sz.z) * CP.margin;
       var d = span / 2 / Math.tan(T.MathUtils.degToRad(10)), yaw = T.MathUtils.degToRad(-20);
-      cam.position.set(c.x + Math.sin(yaw) * d, c.y + span * 0.22, c.z + Math.cos(yaw) * d); cam.lookAt(c.x, c.y - span * 0.02, c.z);
+      cam.position.set(c.x + Math.sin(yaw) * d, c.y + span * CP.h, c.z + Math.cos(yaw) * d); cam.lookAt(c.x, c.y + span * CP.look, c.z);
       sc.background = new T.Color(0x000000); R.render(sc, cam); var B = grab();
       sc.background = new T.Color(0xffffff); R.render(sc, cam); var W = grab();
       var o = cx.createImageData(SIZE, SIZE);
@@ -46,7 +53,11 @@
         o.data[i + 2] = a > 0.004 ? Math.min(255, B.data[i + 2] / a) : 0;
         o.data[i + 3] = Math.round(a * 255);
       }
-      cx.putImageData(o, 0, 0); out[u.heroId + '_' + tier] = cv.toDataURL('image/png');
+      cx.putImageData(o, 0, 0);
+      if (CP.aspect !== 1) { // summon: captured 1:1, centre-cropped to 3:4
+        var cw = Math.round(SIZE * CP.aspect), cc = document.createElement('canvas'); cc.width = cw; cc.height = SIZE;
+        cc.getContext('2d').drawImage(cv, (SIZE - cw) / 2, 0, cw, SIZE, 0, 0, cw, SIZE); out[key0] = cc.toDataURL('image/png');
+      } else out[key0] = cv.toDataURL('image/png');
       fig.heroDispose(); sc.remove(fig.root);
     }
   }
