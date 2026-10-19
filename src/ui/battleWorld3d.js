@@ -4615,6 +4615,11 @@
       fig.root.rotation.x = 0;
       fig.root.rotation.z = 0;
       fig.root.rotation.y = Math.atan2(faceDx, faceDz);
+      // Hover light species (Stormcore): turn the model's front (+Z after its own yaw) to the fight camera,
+      // so the core and bolts read face-on instead of side-on.
+      if (fig.faceCamera && camera && fig.model) {
+        fig.root.rotation.y = Math.atan2(camera.position.x - slot.x, camera.position.z - slot.z) - (fig.model.rotation.y || 0);
+      }
       fig.faceY = fig.root.rotation.y;
 
       // Mark bosses/elites for FX — size already applied via worldSize
@@ -4822,6 +4827,8 @@
       var footY = sy(foot);
       var topY = sy(top);
       var bodyPx = Math.max(28, Math.abs(footY - topY));
+      // hover species: their ground glow sits under the feet anchor; drop the nameplate below the glow
+      if (fig.groundGlow && !fig.dead && !fig.melting) footY += bodyPx * 0.42;
       return {
         // Feet = primary HUD anchor (nameplate sits below this)
         x: sx(foot),

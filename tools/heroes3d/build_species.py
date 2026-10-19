@@ -21,7 +21,7 @@ def mat(name, col, rough=0.3, emit=None):
     b.inputs['Base Color'].default_value = (*col, 1); b.inputs['Roughness'].default_value = rough
     if emit: b.inputs['Emission Color'].default_value = (*emit, 1); b.inputs['Emission Strength'].default_value = 1.0
     return m
-ELCOL = dict(water=(0.35, 0.7, 1.0), lightning=(1.0, 0.94, 0.38)).get(EL, (0.7, 0.7, 0.7))
+ELCOL = dict(water=(0.35, 0.7, 1.0), lightning=(1.0, 0.94, 0.38), earth=(0.55, 0.42, 0.28), poison=(0.45, 0.25, 0.65)).get(EL, (0.7, 0.7, 0.7))
 M_BODY = mat('GelBody', ELCOL, 0.15); M_EYE = mat('GelEye', (0.02, 0.03, 0.07), 0.05); M_SHINE = mat('GelEyeShine', (1, 1, 1), 0.2, (1, 1, 1))
 
 # ---- mask -> inflated heightfield ----
@@ -45,6 +45,12 @@ for s in range(0, len(iy), 4000):
     D[iy[s:s + 4000], ix[s:s + 4000]] = d + 0.5
 R = D.max()
 Hh = np.sqrt(np.clip(2 * R * D - D * D, 0, None)) * DEPTH * cell   # half thickness
+if EL == 'lightning':   # bolt lobes stay thin, lens-flat blades that thin to the tip (no round tubes); only the core is a ball
+    Hh = np.minimum(Hh, D * cell * 0.55 * DEPTH)
+    core = np.zeros_like(D); cyx = np.array(np.unravel_index(np.argmax(D), D.shape), np.float32)
+    yy, xx = np.mgrid[0:D.shape[0], 0:D.shape[1]]; rr = np.hypot(yy - cyx[0], xx - cyx[1])
+    full = np.sqrt(np.clip(2 * R * D - D * D, 0, None)) * DEPTH * cell
+    w = np.clip((R * 1.15 - rr) / (R * 0.25), 0, 1); Hh = Hh * (1 - w) + full * w
 Hh[~inside] = 0
 # closed surface: nodes sit between pixels; outline nodes are shared by front and back (thickness 0)
 verts = []; faces = []; idx = {}
@@ -72,8 +78,8 @@ xc = (min(base) + max(base)) / 2
 for v in body.data.vertices: v.co.x -= xc; v.co.z -= zmin - HOVER
 XC0, ZM0 = xc, zmin - HOVER
 bpy.context.view_layer.objects.active = body; body.select_set(True)
-rm = body.modifiers.new('rm', 'REMESH'); rm.mode = 'VOXEL'; rm.voxel_size = 0.011; bpy.ops.object.modifier_apply(modifier='rm')
-smm = body.modifiers.new('sm', 'CORRECTIVE_SMOOTH'); smm.iterations = 6; smm.smooth_type = 'LENGTH_WEIGHTED'; smm.use_only_smooth = True
+rm = body.modifiers.new('rm', 'REMESH'); rm.mode = 'VOXEL'; rm.voxel_size = 0.008 if EL == 'lightning' else 0.011; bpy.ops.object.modifier_apply(modifier='rm')
+smm = body.modifiers.new('sm', 'CORRECTIVE_SMOOTH'); smm.iterations = 2 if EL == 'lightning' else 6; smm.smooth_type = 'LENGTH_WEIGHTED'; smm.use_only_smooth = True
 bpy.ops.object.modifier_apply(modifier='sm')
 t0 = sum(len(p.vertices) - 2 for p in body.data.polygons)
 dc = body.modifiers.new('dc', 'DECIMATE'); dc.ratio = min(1, 6800 / t0); bpy.ops.object.modifier_apply(modifier='dc')
