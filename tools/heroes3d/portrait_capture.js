@@ -34,14 +34,25 @@
       var rim = new T.DirectionalLight(0xe6f4ff, 1.6); rim.position.set(1.4, 2.2, -3.0); sc.add(rim);
       var fig = H.makeFigure(T, u, { renderer: R, quality: 'high', eyeTier: tier, faceCamYaw: 0 });
       if (!fig) { out[key0] = null; continue; }
-      if (fig.contactShadow) fig.contactShadow.visible = false;
+      if (fig.contactShadow && !fig.groundGlow) fig.contactShadow.visible = false; // hover species keep their ground glow
       sc.add(fig.root);
       if (fig.eyes && fig.eyes.st) { fig.eyes.st.blinkIn = 99; fig.eyes.st.blinkT = -1; fig.eyes.st.glanceIn = 99; }
       for (var k = 0; k < 40; k++) fig.heroTick(1 / 60, [fig]);
-      var box = new T.Box3().setFromObject(fig.model), c = box.getCenter(new T.Vector3()), sz = box.getSize(new T.Vector3());
+      // precise = skinned + animated vertices (the hover lift and the 1.55 species scale are inside the box);
+      // hover species also keep the ground plane (glow) in frame so the gap reads.
+      fig.root.updateMatrixWorld(true);
+      var box = new T.Box3().setFromObject(fig.model, true);
+      if (fig.groundGlow) { box.min.y = Math.min(box.min.y, 0); box.expandByScalar(0.06); }
+      var c = box.getCenter(new T.Vector3()), sz = box.getSize(new T.Vector3());
       var cam = new T.PerspectiveCamera(20, 1, 0.1, 100), span = Math.max(sz.y, sz.x, sz.z) * CP.margin;
       var d = span / 2 / Math.tan(T.MathUtils.degToRad(10)), yaw = T.MathUtils.degToRad(-20);
       cam.position.set(c.x + Math.sin(yaw) * d, c.y + span * CP.h, c.z + Math.cos(yaw) * d); cam.lookAt(c.x, c.y + span * CP.look, c.z);
+      if (fig.groundGlow) { // additive light body: difference-matting flattens it to a saturated fill, so shoot it on a dark stage
+        var bgc = document.createElement('canvas'); bgc.width = bgc.height = 256; var bx = bgc.getContext('2d');
+        var bgg = bx.createRadialGradient(128, 110, 10, 128, 128, 190); bgg.addColorStop(0, '#2a3150'); bgg.addColorStop(1, '#0a0d1a');
+        bx.fillStyle = bgg; bx.fillRect(0, 0, 256, 256); var bgt = new T.CanvasTexture(bgc); bgt.colorSpace = T.SRGBColorSpace;
+        sc.background = bgt; R.render(sc, cam); cx.clearRect(0, 0, SIZE, SIZE); cx.drawImage(R.domElement, 0, 0);
+      } else {
       sc.background = new T.Color(0x000000); R.render(sc, cam); var B = grab();
       sc.background = new T.Color(0xffffff); R.render(sc, cam); var W = grab();
       var o = cx.createImageData(SIZE, SIZE);
@@ -54,6 +65,7 @@
         o.data[i + 3] = Math.round(a * 255);
       }
       cx.putImageData(o, 0, 0);
+      }
       if (CP.aspect !== 1) { // summon: captured 1:1, centre-cropped to 3:4
         var cw = Math.round(SIZE * CP.aspect), cc = document.createElement('canvas'); cc.width = cw; cc.height = SIZE;
         cc.getContext('2d').drawImage(cv, (SIZE - cw) / 2, 0, cw, SIZE, 0, 0, cw, SIZE); out[key0] = cc.toDataURL('image/png');

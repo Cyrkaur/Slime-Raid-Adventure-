@@ -44,7 +44,7 @@ Variants share the lineage's material and motion. They differ in body proportion
 | Spirit (Wisp) | Ghostly drop fading to transparent at the edges, slow bob | Taller wisp with a flame-like trailing tail instead of a base | Round body with two faint arm-wisps and a soft inner glow |
 | Void (Abyss) | Near-black drop with a starfield inside | Irregular body whose outline slowly shifts between rounded shapes | Drop with a small dark ring orbiting it and a starfield swirl |
 
-Eyes follow HERO_DESIGN §5 per element (Crystal facets, Poison clusters, Spirit and Void single eye or slits). Blob = big round baby eyes. Morph variant of a species = the same variant plus two gel arms and a gel brow.
+Species have no face (HERO_DESIGN §5, Oct 19 2026): no eyes, lids, brow or mouth on any species variant. Morph variant of a species = the same variant plus two gel arms.
 
 ---
 

@@ -8,6 +8,8 @@ from mathutils import Vector
 from mathutils.bvhtree import BVHTree
 a = sys.argv[sys.argv.index('--') + 1:]
 KEY, MASK, OUT = a[0], a[1], a[2]; HOVER = float(a[3]) if len(a) > 3 else 0.0; EYEF = float(a[4]) if len(a) > 4 else None
+SCALE = float(a[5]) if len(a) > 5 else 1.0; GLOWMAP = a[6] if len(a) > 6 else None
+NOFACE = True   # ruling Oct 19 2026 (Reed/Serif): species have no face; approved cards + standing rule 6 win
 EL = KEY.split('_')[0]
 WORLD_PER_CW = 0.42          # world units per concept "W" (360 px); same for every lineage so C/U/R keep their size ratio
 DEPTH = 0.82                 # front-to-back thickness vs a round cross-section
@@ -31,7 +33,7 @@ ys, xs = np.where(al > 0.5); x0, x1, y0, y1 = xs.min(), xs.max(), ys.min(), ys.m
 STEP = max(1, int(round((y1 - y0) / 230)))
 m = al[y0:y1 + 1:STEP, x0:x1 + 1:STEP] > 0.5
 m = np.pad(m, 2); H_, W_ = m.shape
-cell = STEP / 360.0 * WORLD_PER_CW
+cell = STEP / 360.0 * WORLD_PER_CW * SCALE
 # brute-force Euclidean distance to the outline
 inside = m; er = inside.copy()
 er[1:-1, 1:-1] = inside[1:-1, 1:-1] & inside[:-2, 1:-1] & inside[2:, 1:-1] & inside[1:-1, :-2] & inside[1:-1, 2:]
@@ -68,6 +70,7 @@ xs_ = [v[0] for v in verts]; zs_ = [v[2] for v in verts if v[1] != 0 or True]
 zmin = min(v[2] for v in verts); base = [v[0] for v in verts if v[2] < zmin + 0.06 and abs(v[1]) > 0.002] or xs_
 xc = (min(base) + max(base)) / 2
 for v in body.data.vertices: v.co.x -= xc; v.co.z -= zmin - HOVER
+XC0, ZM0 = xc, zmin - HOVER
 bpy.context.view_layer.objects.active = body; body.select_set(True)
 rm = body.modifiers.new('rm', 'REMESH'); rm.mode = 'VOXEL'; rm.voxel_size = 0.011; bpy.ops.object.modifier_apply(modifier='rm')
 smm = body.modifiers.new('sm', 'CORRECTIVE_SMOOTH'); smm.iterations = 6; smm.smooth_type = 'LENGTH_WEIGHTED'; smm.use_only_smooth = True
@@ -79,31 +82,18 @@ for p in body.data.polygons: p.use_smooth = True
 Z = [v.co.z for v in body.data.vertices]; ZLO, ZHI = min(Z), max(Z); H = ZHI - ZLO
 print('BODY tris', sum(len(p.vertices) - 2 for p in body.data.polygons), 'H', round(H, 3), 'W', round(W_ * cell, 3))
 
-# ---- eyes: on the front face of the main mass, ~45% up ----
-bvh = BVHTree.FromObject(body, bpy.context.evaluated_depsgraph_get())
-ZE = ZLO + H * (EYEF if EYEF else (0.40 if EL != 'lightning' else 0.52))
-row = [v.co.x for v in body.data.vertices if abs(v.co.z - ZE) < 0.02]
-# use the thickest column near that height as the face centre
-best, xe = -1, 0.0
-for x in np.linspace(min(row), max(row), 40):
-    hit = bvh.ray_cast(Vector((x, -3, ZE)), Vector((0, 1, 0)))
-    if hit[0] is not None and -hit[0].y > best: best, xe = -hit[0].y, x
-span = max(row) - min(row); EO = min(0.17, span * 0.16)
-ES = 0.13 * min(1.0, H / 1.0) ** 0.3
 HEAD = []
-def uvs(name, loc, s, m_):
-    bpy.ops.mesh.primitive_uv_sphere_add(segments=20, ring_count=12, location=loc); o = bpy.context.active_object
-    o.name = name; o.scale = s; o.data.materials.append(m_)
-    for p in o.data.polygons: p.use_smooth = True
-    return o
-for s in (1, -1):
-    eo = EO; hit = (None,)
-    while hit[0] is None and eo > 0.01:
-        hit = bvh.ray_cast(Vector((xe + s * eo, -3, ZE)), Vector((0, 1, 0))); eo *= 0.8
-    if hit[0] is None: hit = bvh.ray_cast(Vector((xe, -3, ZE)), Vector((0, 1, 0)))
-    p, n = hit[0], hit[1]
-    e = uvs('Eye' + ('L' if s > 0 else 'R'), p - n * 0.03, (ES, ES * 0.45, ES * 1.3), M_EYE); e.rotation_euler = (0, 0, math.atan2(n.x, -n.y)); HEAD.append(e)
-    HEAD.append(uvs('EyeShine', p + n * 0.02 + Vector((0.03 * s - 0.025, 0, 0.06)), (0.04, 0.02, 0.04), M_SHINE))
+if GLOWMAP:   # Stormcore: bake glow (white-hot core + light pulled out along the bolt ridges) into vertex colour
+    gi = bpy.data.images.load(GLOWMAP); gw, gh = gi.size
+    gp = np.array(gi.pixels[:], dtype=np.float32).reshape(gh, gw, gi.channels)[..., 0]
+    ca = body.data.color_attributes.new('Col', 'FLOAT_COLOR', 'POINT')
+    for v in body.data.vertices:
+        i = (v.co.x + XC0) / cell + 2; j = (v.co.z + ZM0) / cell + 2   # back to mask grid
+        gx = int(round(x0 + (i - 2) * STEP)); gy = int(round(y0 + (j - 2) * STEP))
+        g = float(gp[min(gh - 1, max(0, gy)), min(gw - 1, max(0, gx))]) if 0 <= gx < gw and 0 <= gy < gh else 0.0
+        ca.data[v.index].color = (g, g, g, 1.0)
+if not NOFACE:
+    raise SystemExit('faces are off for species (Oct 19 ruling)')
 ALL = [body] + HEAD
 for o in ALL: bpy.context.view_layer.objects.active = o; o.select_set(True)
 bpy.ops.object.transform_apply(location=True, rotation=True, scale=True); bpy.ops.object.select_all(action='DESELECT')

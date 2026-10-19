@@ -15,8 +15,8 @@ Each element has 4 form tiers (from `resolveFormTier` in `src/data/gameData.js`)
 
 | Form | Who gets it | Look |
 |---|---|---|
-| Blob | Common, Uncommon | Soft teardrop body, big baby eyes, one element feature |
-| Morph | Epic, some Rare, evo 2+ | Blob plus two gel tentacle arms, defined eye shape, gel brow |
+| Blob | Common, Uncommon | Soft teardrop body, no face (species are faceless), one element feature |
+| Morph | Epic, some Rare, evo 2+ | Blob plus two gel tentacle arms; no face on species (eyes and brow only where a named hero card draws them) |
 | Ascended | Legendary, Epic evo 3+ | Shaped torso, arms, element armor or crown pieces |
 | Humanoid (shaped) | Mythic, Legendary evo 5+ | Near-humanoid gel figure with face, hands, drips; full element silhouette |
 
@@ -53,20 +53,19 @@ The gel behaves differently per element, in both the material and the motion.
 The exact material values live in the generator's kit files.
 
 ## 5. Eyes
-- Every hero has eyes at every evolution level. Eyeless designs are for enemies only.
-- Eyes float inside the gel just under the surface. They ride the squash and stretch with a slight lag and wobble.
-- Stylized, not realistic: big dark pupils, one or two highlights, glossy surface. No realistic irises.
-- The eyes do the acting: blink, look at target, squint to attack, go wide when hit, close or daze on faint.
-- Element touches: Lava ember glow, Ice frost rim, Shadow slit pupils, Light white-gold, Metal polished bead, Water magnified through clear gel.
-- Deliberate exceptions: Void and Spirit get one big eye or glowing slits, Crystal eyes are facets inside the crystal, Poison has several small eyes in the murk.
-- Evolution shows in the eyes. Blob = big round baby eyes. Morph = defined shape plus gel brow. Ascended and Humanoid = glowing irises, runes around the eyes, optional third eye or crown.
+- **Species (Common, Uncommon, Rare) have no face.** No eyes, lids, brow or mouth on any species, at any rarity or evolution level. The approved species cards and concepts are faceless ("no face drawn"), and standing rule 6 applies. A species reads by silhouette, material and motion only. (Ruling Oct 19 2026, from Serif's species look-check kick.)
+- Named heroes (Epic, Legendary, Mythic) follow their approved hero card. Eyes appear only where the card draws them, and never on a card that has no face (for example Wisp).
+- Where a named hero's card does draw eyes, they float inside the gel just under the surface and ride the squash and stretch with a slight lag and wobble. They are stylized, not realistic: big dark pupils, one or two highlights, a glossy surface, no realistic irises.
+- Card-drawn eyes can act: blink, look at the target, squint to attack, go wide when hit, close or daze on faint.
+- Element touches on card-drawn eyes: Lava ember glow, Ice frost rim, Shadow slit pupils, Light white-gold, Metal polished bead, Water magnified through clear gel.
+- Evolution on a species shows through the whole body (silhouette, element growth), not through eyes.
 
 ## 6. Quality gates (every form)
 - **Silhouette distinct**: recognizable as a black silhouette at fight size, across elements and across forms.
 - **Slime read**: looks like wet gel, never plastic or matte.
-- **Eyes read**: close-up and fight-distance stills.
+- **Face check**: species show no eyes, lids, brow or mouth in any still. Named heroes match their card (eyes only where drawn), at close-up and fight distance.
 - **Beats the sprite**: side-by-side with the painted plate from the fight camera.
-- **Grounded**: contact shadow, no floating.
+- **Grounded**: contact shadow, no floating (hover species such as Stormcore: a visible hover gap plus a separate ground glow).
 - **Budget**: LOD0 at most 10k triangles, textures at most 1k, fight frame rate no more than 10% below the sprite build.
 - **Animation**: all clips play in game without popping.
 - `npm test` passes.

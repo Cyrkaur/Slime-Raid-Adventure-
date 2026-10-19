@@ -91,7 +91,7 @@ The stages are defined by control, not by how human the body looks. Current code
 | Stage | Control profile | What the player sees | What it unlocks (reasoned, no numbers) |
 |---|---|---|---|
 | **S0 Puddle** | None held | A spread puddle with eyes. Used for faint, sleep, and summon reveal only, never as a resting form. | None. A state, not a stage. |
-| **S1 Blob** [blob] | Holds a dome and one element feature | Soft teardrop, baby eyes, one feature (HERO_DESIGN §2) | Basic attack with the whole body. Stats lean soft and durable, since a dome is the stable shape. |
+| **S1 Blob** [blob] | Holds a dome and one element feature | Soft teardrop, no face, one feature (HERO_DESIGN §2, §5) | Basic attack with the whole body. Stats lean soft and durable, since a dome is the stable shape. |
 | **S2 Pseudopod** [new] | Pushes out 1–2 temporary nubs and holds them briefly | Stubby gel nubs that form on attack or cast and melt back at rest. First sorting of inclusions. | Reach: the basic attack becomes an element-flavored strike, and the first element feature becomes active (a splash, a spark). |
 | **S3 Morph** [morph] | Holds two gel arms, a defined face, and a brow | Blob plus two semi-shaped tentacle arms (existing morph base) | Two "tools", so a second active skill. Stances and poses become readable. |
 | **S4 Shaped** [ascended] | Holds a torso and arms plus **assembled hard parts** (armor, crown, tool) | Existing ascended base plus the hero's hook fully formed | Hard parts carry the named hero's signature skill in its full visual form. Composition first affects combat reads (armor → defense, tool → a specific effect). |

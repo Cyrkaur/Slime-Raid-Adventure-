@@ -4464,6 +4464,7 @@
     var bloomSmallCtx = null;
     var bloomBlur = null;
     var bloomBlurCtx = null;
+    if (typeof window !== 'undefined' && window.__SR_CAPTURE_NO_BLOOM) Q.bloom = false; // still captures: no soft haze over units
     if (Q.bloom && typeof document !== 'undefined') {
       try {
         var bw = Math.max(32, Math.floor(width / Q.bloomDownscale));
@@ -8104,7 +8105,7 @@
               fig.root.position.y = fig.home.y + bob + 0.08;
             }
           }
-          if (fig.contactShadow) {
+          if (fig.contactShadow && !fig.groundGlow) { // hover glow (Stormcore) keeps its own opacity
             fig.contactShadow.material.opacity = 0.25 + Math.sin(clock * 8) * 0.08;
           }
         } else {
@@ -8150,7 +8151,7 @@
               }
             }
           }
-          if (fig.contactShadow) fig.contactShadow.material.opacity = grounded ? 0.48 : 0.38;
+          if (fig.contactShadow && !fig.groundGlow) fig.contactShadow.material.opacity = grounded ? 0.48 : 0.38;
         }
       }
 

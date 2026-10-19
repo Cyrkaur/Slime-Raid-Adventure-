@@ -688,6 +688,8 @@ import * as SkeletonUtils from '../../vendor/three-addons-g/utils/SkeletonUtils.
     var el = elKey(unit.element);
     var pr = propsFor(el);
     if (hk && HERO_KITS[hk]) pr = Object.assign({}, pr, HERO_KITS[hk]);
+    var storm = !!(spk && el === 'lightning');
+    if (storm) pr = Object.assign({}, pr, { scale: 1.55 }); // Stormcore Orb: reads at fight distance (>= ~86 px at 1920)
     var look = pr;
     var rar = RARITY[unit.rarity] || RARITY.Common;
     var env = envFor(opts.renderer);
@@ -719,14 +721,27 @@ import * as SkeletonUtils from '../../vendor/three-addons-g/utils/SkeletonUtils.
       var m, slime = false;
       if (name === 'GelBody' && spk && el === 'lightning') {
         // Stormcore: emissive core with a soft falloff to the outline (no hard edge, no outline/cel line).
+        // Glow is baked from tools/heroes3d/in/storm_c_ridge.png into the 'Col' attribute, which glTF exports as COLOR_1
+        // (COLOR_0 is a flat white default). three only feeds 'color' to vColor, so route color_1 there.
+        var sg = o.geometry;
+        if (sg && sg.attributes.color_1 && !sg.userData._stormCol) { sg.setAttribute('color', sg.attributes.color_1); sg.userData._stormCol = true; }
+        var hasCol = !!(sg && sg.attributes.color && sg.userData._stormCol);
         m = new THREE.MeshStandardMaterial({ color: 0x000000, emissive: new THREE.Color(0xffe46a), emissiveIntensity: 0.5 + rar.trim * 0.4,
-          roughness: 1, metalness: 0, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false });
+          roughness: 1, metalness: 0, transparent: true, depthWrite: false, blending: THREE.NormalBlending, toneMapped: false, vertexColors: hasCol });
+        // normal (not additive) blend: additive light washes out to a pale smudge over the bright green arena
         m.onBeforeCompile = function (sh) {
           sh.fragmentShader = sh.fragmentShader.replace('#include <dithering_fragment>',
             '#include <dithering_fragment>\n' +
             ' float ndv = abs(dot(normalize(normal), normalize(vViewPosition)));\n' +
-            ' gl_FragColor.rgb *= mix(0.55, 2.2, pow(ndv, 2.2)) * mix(vec3(1.0,0.78,0.22), vec3(1.0,1.0,0.9), pow(ndv, 3.0));\n' +
-            ' gl_FragColor.a = smoothstep(0.0, 0.55, ndv);');
+            (hasCol ? ' float g = clamp(vColor.r, 0.0, 1.0);\n' : ' float g = pow(ndv, 3.0);\n') +
+            ' float core = smoothstep(0.62, 0.97, g);\n' +              // white-hot centre
+            ' float bolt = smoothstep(0.04, 0.5, g);\n' +               // light pulled out along the tendrils
+            ' vec3 amber = vec3(1.0, 0.80, 0.28) * 0.72;\n' +
+            ' vec3 yel = vec3(1.0, 0.95, 0.62) * 1.3;\n' +
+            ' vec3 col = mix(amber, yel, bolt);\n' +
+            ' col = mix(col, vec3(2.2, 2.2, 2.0), core);\n' +
+            ' gl_FragColor.rgb = col * mix(0.75, 1.15, ndv) * (1.0 + max(0.0, emissive.r - 0.55) * 1.2);  // battle sets emissiveIntensity ~0.05 at rest; pulses brighten\n' +
+            ' gl_FragColor.a = clamp(smoothstep(0.0, 0.3, ndv) * (0.8 + 0.2 * bolt), 0.0, 1.0);');
         };
         m.name = 'StormGlow'; slime = true; // weightless: no surface jiggle (and keeps this shader hook)
         if (!body || o.name === 'body') body = o;
@@ -791,7 +806,8 @@ import * as SkeletonUtils from '../../vendor/three-addons-g/utils/SkeletonUtils.
     });
     if (!body) { console.warn('[Hero3D] no GelBody in', el); return null; }
 
-    var eyes = opts.legacyEyes ? null : makeEyes(model, pr, hiQ, env, mats, heroEyeTier(unit, opts, hk));
+    var eyes = (opts.legacyEyes || spk) ? null : // species: no face (Oct 19 2026 ruling)
+       makeEyes(model, pr, hiQ, env, mats, heroEyeTier(unit, opts, hk));
     var root = new THREE.Group();
     root.add(model);
 
@@ -803,13 +819,18 @@ import * as SkeletonUtils from '../../vendor/three-addons-g/utils/SkeletonUtils.
         blending: THREE.MultiplyBlending, premultipliedAlpha: false, toneMapped: false, fog: false
       })
     );
-    if (spk && el === 'lightning') { // hovers: a soft separate ground glow instead of a contact shadow
+    var fig0glow = false;
+    if (storm) { // hovers: a soft separate ground glow instead of a contact shadow
       var gc = document.createElement('canvas'); gc.width = gc.height = 128; var gx = gc.getContext('2d');
-      var gg = gx.createRadialGradient(64, 64, 0, 64, 64, 64); gg.addColorStop(0, 'rgba(255,230,110,0.9)'); gg.addColorStop(1, 'rgba(255,200,60,0)');
+      var gg = gx.createRadialGradient(64, 64, 0, 64, 64, 64); gg.addColorStop(0, 'rgba(255,248,190,1)'); gg.addColorStop(0.3, 'rgba(255,222,90,0.75)'); gg.addColorStop(0.65, 'rgba(255,196,60,0.28)'); gg.addColorStop(1, 'rgba(255,200,60,0)');
       gx.fillStyle = gg; gx.fillRect(0, 0, 128, 128);
       shadow.material.dispose();
-      shadow.material = new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(gc), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false, fog: false });
-      shadow.scale.set(0.8, 0.45, 1);
+      shadow.material = new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(gc), color: new THREE.Color(2.0, 1.8, 1.1), transparent: true, depthWrite: false, blending: THREE.NormalBlending, toneMapped: false, fog: false });
+      shadow.geometry.dispose(); shadow.geometry = new THREE.CircleGeometry(2.0, 40); // wider than the body so it shows past the hover gap
+      shadow.scale.set(0.95, 0.55, 1); fig0glow = true;
+      // the GLB root sits under a lobe tip; centre the glow under the core instead
+      model.updateMatrixWorld(true); var gb = new THREE.Box3().setFromObject(model), gcx = gb.getCenter(new THREE.Vector3());
+      shadow.position.x = gcx.x; shadow.position.z = gcx.z;
     }
     shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.035; shadow.renderOrder = 1;
     root.add(shadow);
@@ -848,7 +869,7 @@ import * as SkeletonUtils from '../../vendor/three-addons-g/utils/SkeletonUtils.
       coreMat: core ? core.material : body.material,
       outline: null, mat: body.material, mats: mats,
       geo: null, base: null, eyes: [], hi: null,
-      contactShadow: shadow,
+      contactShadow: shadow, groundGlow: fig0glow,
       tint: tintHex, tintColor: new THREE.Color(tintHex), baseColor: new THREE.Color(look.color),
       phase: Math.random() * Math.PI * 2, unitId: unit.id,
       isFoe: false, isEnemy: false, enemyKind: null, solidEnemy: false,
@@ -870,11 +891,12 @@ import * as SkeletonUtils from '../../vendor/three-addons-g/utils/SkeletonUtils.
         spring.v += (-pr.stiff * spring.s - pr.damp * spring.v) * h;
         spring.s += spring.v * h;
         if (spring.s > 0.35) { spring.s = 0.35; spring.v = 0; } else if (spring.s < -0.3) { spring.s = -0.3; spring.v = 0; }
-        var sq = (spk && el === 'lightning') ? 0 : spring.s;
+        var sq = storm ? 0 : spring.s;
         model.scale.set(baseScale * (1 + sq * 0.55), baseScale * (1 - sq), baseScale * (1 + sq * 0.55));
         U.uTime.value += dt;
         U.uJigAmp.value = pr.jigAmp * (1 + Math.min(3, Math.abs(spring.v) * 0.5));
         if (eyes) eyes.tick(dt, U, figs, fig);
+        if (fig0glow && !fig.dead && !fig.melting) shadow.material.opacity = 0.92 + 0.08 * Math.sin(U.uTime.value * 7.0); // battle dims contact shadows to 0.48; the glow keeps its own level
       },
       heroRevive: function () {
         fig.dead = false; fig.melting = false; model.visible = true; shadow.visible = true;
