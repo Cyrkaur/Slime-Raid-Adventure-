@@ -96,13 +96,16 @@ def px_world(px, py_img):           # concept pixel (x, y from top) -> (x, z) wo
 def depth_at(j, i): j = min(max(j, 0), Hh.shape[0] - 1); i = min(max(i, 0), Hh.shape[1] - 1); return float(Hh[j, i])
 if EL == 'earth':   # Stoneward: flat slate capstone with a slanted top, riding the top contour of the approved silhouette
     import bmesh
-    M_SLATE = mat('Orn_Slate', (0.30, 0.29, 0.27), 0.92)   # slate, linear (≈ #959089 sRGB)
-    cols = [i for i in range(W_) if inside[:, i].any()]; iL = cols[0] + int(0.22 * len(cols)); iR = cols[0] + int(0.80 * len(cols))
+    M_SLATE = M_BODY   # v5: the slanted top IS the stone body (same material/pebbles), not a separate lid
+    cols = [i for i in range(W_) if inside[:, i].any()]; iL = cols[0] + int(0.30 * len(cols)); iR = cols[0] + int(0.74 * len(cols))
     T = 0.07 * SCALE; top, bot = [], []; dep = 0.0
-    for i in (iL, iR):   # one straight slanted top edge (no stair-steps)
-        jt = int(np.where(inside[:, i])[0].max()); x = (i - 2) * cell - XC0; z = (jt - 2) * cell - ZM0 + 0.004
-        top.append((x, z)); bot.append((x, z - T)); dep = max(dep, depth_at(jt - int(T / cell), i))
-    dep = float(Hh.max()) * 0.9   # caps the full top face
+    import random; random.seed(7); NS = 9; deps = []
+    jl = int(np.where(inside[:, iL])[0].max()); jr = int(np.where(inside[:, iR])[0].max())
+    for k in range(NS + 1):   # slanted top following the silhouette's line, with a broken, chipped edge
+        t = k / NS; i = iL + (iR - iL) * t; jt = jl + (jr - jl) * t
+        x = (i - 2) * cell - XC0; z = (jt - 2) * cell - ZM0 - 0.004 + (0 if k in (0, NS) else random.uniform(-0.022, 0.012) * SCALE)
+        top.append((x, z)); bot.append((x, z - T * 1.6)); deps.append(depth_at(int(jt - 1.6 * T / cell), int(i)))
+    dep = float(np.median(deps)) * 0.8   # sunk into the body, never wider than the stone below it
     bm = bmesh.new(); ring = top + bot[::-1]
     fv = [bm.verts.new((x, -dep, z)) for x, z in ring]; bv = [bm.verts.new((x, dep, z)) for x, z in ring]
     bm.faces.new(fv); bm.faces.new(bv[::-1])
@@ -115,7 +118,7 @@ if EL == 'earth':   # Stoneward: flat slate capstone with a slanted top, riding 
     print('SLATE cols', iL, iR, 'depth', round(dep, 3))
 if EL == 'poison':  # Venomkin: column of marsh-gas bubbles rising up into the stalk (concept v3 positions, full-res px)
     M_BUB = mat('GelBubble', (0.75, 1.0, 0.5), 0.05)
-    for (bx, by, br) in [(646, 702, 42), (682, 631, 36), (718, 553, 32), (750, 470, 26), (788, 399, 21)]:
+    for (bx, by, br) in [(646, 702, 40), (682, 631, 31), (718, 553, 24), (750, 470, 17), (788, 399, 12)]:
         x, z, j, i = px_world(bx, by); r = br * PXW
         bpy.ops.mesh.primitive_uv_sphere_add(segments=16, ring_count=10, radius=r, location=(x, -(depth_at(j, i) + r * 0.15), z))   # sit on the front face so they read
         ob = bpy.context.active_object; ob.name = 'bubble'; ob.data.materials.append(M_BUB)

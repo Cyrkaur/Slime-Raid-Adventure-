@@ -293,7 +293,7 @@ import * as SkeletonUtils from '../../vendor/three-addons-g/utils/SkeletonUtils.
         '  totalEmissiveRadiance += uRim * pow(fr, 4.0) * 0.9;\n' +
         // Venomkin: glowing green interior pooled low + a crisp green rim line (card)
         '  { vec2 gd = (vObjPos.xy - vec2(-0.12, 0.26)) / vec2(0.22, 0.14); totalEmissiveRadiance += uSSSCol * uInGlow * exp(-dot(gd, gd)) * pow(1.0 - fr, 1.2) * (0.8 + 0.4 * vNoise(vObjPos * 4.0 + vec3(0.0, uTime * 0.25, 0.0))); }\n' +
-        '  totalEmissiveRadiance += uRim * uRimLine * smoothstep(0.78, 0.95, fr);\n' +
+        '  totalEmissiveRadiance += uRim * uRimLine * smoothstep(0.6, 0.9, fr);\n' +
         '  totalEmissiveRadiance += uSSSCol * uSSS * (1.0 - fr) * clamp(1.1 - hgt * 0.8, 0.2, 1.1);\n' +
         '  vec3 cq = vObjPos * 5.5 + vec3(0.0, uTime * 0.35, uTime * 0.2); float cA = vNoise(cq), cB = vNoise(cq * 1.7 + 4.3);\n' +
         '  float cau = pow(clamp(1.0 - abs(cA - cB) * 5.0, 0.0, 1.0), 5.0);\n' +
@@ -705,7 +705,7 @@ import * as SkeletonUtils from '../../vendor/three-addons-g/utils/SkeletonUtils.
     if (spk && el === 'earth') pr = Object.assign({}, pr, { color: 0x655a4a, atten: 0x4e4a42, trans: 0.0, rough: 0.95, ripple: 0.0, caustic: 0.0, sss: 0.0,
       rim: 0x000000, crust: 0.22, cloud: 0.35, pebble: 1.0, sheen: 0.0, scale: 1.6, coreGlow: 0.0, jigAmp: 0.004, stiff: 160, damp: 18, squash: 0.45, ts: 0.75 });
     if (spk && el === 'poison') pr = Object.assign({}, pr, { color: 0x7648b4, atten: 0x3a1a70, trans: 0.0, rough: 0.2, sheen: 0.0, murk: 0.12, murkCol: 0x3a1468,
-      sss: 0.0, sssCol: 0x5ad01a, inGlow: 0.6, rim: 0xa0ff50, rimLine: 1.6, caustic: 0.0, scale: 2.5, caustCol: 0xb8ff60, ripple: 0.5 }); // Stormcore Orb: reads at fight distance (>= ~86 px at 1920)
+      sss: 0.0, sssCol: 0x5ad01a, inGlow: 0.6, rim: 0x9cff1e, rimLine: 3.6, caustic: 0.0, scale: 2.5, caustCol: 0xb8ff60, ripple: 0.5 }); // Stormcore Orb: reads at fight distance (>= ~86 px at 1920)
     var look = pr;
     var rar = RARITY[unit.rarity] || RARITY.Common;
     var env = envFor(opts.renderer);
@@ -798,7 +798,17 @@ import * as SkeletonUtils from '../../vendor/three-addons-g/utils/SkeletonUtils.
       } else if (name === 'GelBubble') {
         m = new THREE.MeshPhysicalMaterial({ color: 0xeefaff, roughness: 0.02, transmission: hiQ ? 0.9 : 0, thickness: 0.08, ior: 1.2,
           clearcoat: 1, iridescence: 0.6, emissive: new THREE.Color(pr.caustCol), emissiveIntensity: 0.12 });
-        if (spk && el === 'poison') { m.transmission = 0; m.color.set(0xc8ff80); m.emissive.set(0x9cff40); m.emissiveIntensity = 1.1; m.iridescence = 0; } // glowing bubble column
+        if (spk && el === 'poison') { // glowing bubble column: clear rings (bright lime rim, see-through centre)
+          m = new THREE.MeshStandardMaterial({ color: 0x000000, emissive: new THREE.Color(0xc4ff4a), emissiveIntensity: 1.0, roughness: 1, metalness: 0,
+            transparent: true, depthWrite: false, toneMapped: false });
+          m.onBeforeCompile = function (sh) {
+            sh.fragmentShader = sh.fragmentShader.replace('#include <dithering_fragment>', '#include <dithering_fragment>\n' +
+              ' float bn = abs(dot(normalize(normal), normalize(vViewPosition)));\n float ring = smoothstep(0.8, 0.2, bn);\n' +
+              ' gl_FragColor.rgb = vec3(0.55, 1.0, 0.18) * (0.9 + 0.9 * ring);\n gl_FragColor.a = clamp(0.1 + ring * 0.95, 0.0, 1.0);');
+          };
+          m.customProgramCacheKey = function () { return 'venomBubble2'; };
+          m.name = 'VenomBubble'; slime = true;
+        }
       } else if (name === 'Ember') {
         m = new THREE.MeshBasicMaterial({ color: new THREE.Color(0xffc040).multiplyScalar(1.6 + rar.trim), toneMapped: false });
       } else if (name === 'InnerLeaf') {
