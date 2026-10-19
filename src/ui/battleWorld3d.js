@@ -4450,6 +4450,26 @@
     renderer.setClearColor(clearCol, 1);
 
     var figures = {};
+    // Capture/QA hook (read-only): on-screen size of each figure's SOLID mesh in CSS px, skinned vertices projected
+    // through the fight camera. Halo sprites, ground glow / contact shadow, nameplate discs and FX are excluded.
+    if (typeof window !== 'undefined') window.__SR_MEASURE_FIGS = function () {
+      var out = [], v = new THREE.Vector3(), cw = width, ch = height;
+      Object.keys(figures).forEach(function (id) {
+        var f = figures[id], m = f && (f.model || (f.gel && f.gel.model)); if (!m || !f.root.visible) return;
+        var x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9; m.updateMatrixWorld(true);
+        m.traverse(function (o) {
+          if (!o.isMesh || !o.visible || o.isSprite || /Halo|Glow|shadow/i.test(o.name) || (o.material && /Halo/.test(o.material.name || ''))) return;
+          var pos = o.geometry.attributes.position;
+          for (var i = 0; i < pos.count; i += 2) {
+            v.fromBufferAttribute(pos, i); if (o.isSkinnedMesh) o.applyBoneTransform(i, v); v.applyMatrix4(o.matrixWorld).project(camera);
+            var sx = (v.x * 0.5 + 0.5) * cw, sy = (0.5 - v.y * 0.5) * ch;
+            if (sx < x0) x0 = sx; if (sx > x1) x1 = sx; if (sy < y0) y0 = sy; if (sy > y1) y1 = sy;
+          }
+        });
+        out.push({ id: id, name: f.unit ? f.unit.name : id, element: f.unit ? f.unit.element : '', w: Math.round(x1 - x0), h: Math.round(y1 - y0), vw: cw, vh: ch });
+      });
+      return out;
+    };
     var clock = 0;
     var textureKey = opts.textureKey || 'battle_world_3d';
     var phaserGame = opts.game || null;

@@ -4,7 +4,7 @@
 # (stormcore.md lobe rule), no mirror pair. Outputs mask (white body) + glow ridge map (core + bolt spines).
 import math, sys
 from PIL import Image, ImageDraw, ImageFilter
-S = 1200; R = 215; cx, cy = S // 2, S // 2
+S = 1700; R = 300; cx, cy = S // 2, S // 2
 im = Image.new('L', (S, S), 0); d = ImageDraw.Draw(im)
 ridge = Image.new('L', (S, S), 0); rd = ImageDraw.Draw(ridge)
 d.ellipse((cx - R, cy - R, cx + R, cy + R), fill=255)
@@ -23,12 +23,13 @@ def strip(pts, widths, draw, fill=255):
     draw.polygon(L + Rr[::-1], fill=fill)
 def bolt(ang_deg, L, W, kinks, forks):
     a = math.radians(ang_deg); ux, uy = U(a); px_, py_ = -uy, ux
-    pts = [(cx + ux * R * 0.5, cy + uy * R * 0.5)]
+    pts = [(cx + ux * R * 0.3, cy + uy * R * 0.3)]   # root buried deep in the ball: one fused piece
     n = len(kinks)
     for i, k in enumerate(kinks):
-        t = (i + 1) / n; r = R * 0.85 + L * t
+        t = (i + 1) / n; r = R * 0.95 + L * t
+        if i == 0: k *= 0.35   # first kink stays inside the ball's outline so the root is a solid neck, not a gap
         pts.append((cx + ux * r + px_ * k * W, cy + uy * r + py_ * k * W))
-    ws = [W * (1.0 - 0.8 * i / n) for i in range(n)] + [0.0]      # steps down in width, point at the tip
+    ws = [W * 1.45] + [W * (1.0 - 0.8 * i / n) for i in range(1, n)] + [0.0]   # thick root neck      # steps down in width, point at the tip
     strip(pts, ws, d); strip(pts, [w * 0.32 for w in ws], rd)
     bx, by = pts[-2]; base = ws[-2] * 0.95                       # forks split off the last kink
     for fa, fl, kink in forks:
@@ -40,6 +41,7 @@ def bolt(ang_deg, L, W, kinks, forks):
 bolt(58, 330, 128, [0.5, -0.55, 0.5, -0.2], [(-32, 165, 0.12), (42, 105, -0.15)])     # dominant, upper right
 bolt(128, 190, 104, [-0.55, 0.5, -0.2], [(36, 110, -0.12), (-30, 80, 0.15)])            # short, lower right
 bolt(264, 290, 118, [0.55, -0.5, 0.45, -0.15], [(30, 145, 0.12), (-38, 95, -0.15)])    # long, left (no mirror of the first)
-rd.ellipse((cx - R * 0.5, cy - R * 0.5, cx + R * 0.5, cy + R * 0.5), fill=255)
+for k in range(24):   # glow falls off from a white-hot centre to the ball's soft rim
+    rr_ = R * (0.92 - 0.92 * k / 24); v = int(110 + 145 * k / 23); rd.ellipse((cx - rr_, cy - rr_, cx + rr_, cy + rr_), fill=v)
 im = im.filter(ImageFilter.GaussianBlur(1.0)).point(lambda v: 255 if v > 127 else 0)
-im.save(sys.argv[1]); ridge.filter(ImageFilter.GaussianBlur(14)).save(sys.argv[2])
+im.save(sys.argv[1]); ridge.filter(ImageFilter.GaussianBlur(18)).save(sys.argv[2])

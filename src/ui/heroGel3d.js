@@ -250,7 +250,8 @@ import * as SkeletonUtils from '../../vendor/three-addons-g/utils/SkeletonUtils.
       uRipple: { value: pr.ripple }, uRippleScale: { value: pr.rippleScale }, uRippleSpeed: { value: pr.rippleSpeed },
       uCaustic: { value: pr.caustic }, uCaustCol: C(pr.caustCol), uSSS: { value: pr.sss }, uSSSCol: C(pr.sssCol),
       uGlowTip: { value: pr.glowTip }, uTipCol: C(pr.tipCol), uCrust: { value: pr.crust }, uMoss: { value: pr.moss }, uMossCol: C(pr.mossCol),
-      uFrost: { value: pr.frost }, uMurk: { value: pr.murk }, uMurkCol: C(pr.murkCol), uCloud: { value: pr.cloud }
+      uFrost: { value: pr.frost }, uMurk: { value: pr.murk }, uMurkCol: C(pr.murkCol), uCloud: { value: pr.cloud },
+      uPebble: { value: pr.pebble || 0 }, uInGlow: { value: pr.inGlow || 0 }, uRimLine: { value: pr.rimLine || 0 }
     };
     mat.userData.slime = S;
     mat.onBeforeCompile = function (sh) {
@@ -260,7 +261,7 @@ import * as SkeletonUtils from '../../vendor/three-addons-g/utils/SkeletonUtils.
         .replace('#include <common>', '#include <common>\nuniform float uTime; uniform float uJigAmp; uniform float uJigFreq; varying vec3 vObjPos;')
         .replace('#include <begin_vertex>', JIG_VS);
       var decl = '\nuniform float uTime; varying vec3 vObjPos;\n' +
-        'uniform vec3 uRim; uniform float uRipple, uRippleScale, uRippleSpeed, uCaustic, uSSS, uGlowTip, uCrust, uMoss, uFrost, uMurk, uCloud;\n' +
+        'uniform vec3 uRim; uniform float uRipple, uRippleScale, uRippleSpeed, uCaustic, uSSS, uGlowTip, uCrust, uMoss, uFrost, uMurk, uCloud, uPebble, uInGlow, uRimLine;\n' +
         'uniform vec3 uCaustCol, uSSSCol, uTipCol, uMossCol, uMurkCol;\n' + GLSL_NOISE + '\n' +
         'float slimeH(vec3 p){ vec3 q = p * uRippleScale + vec3(0.0, uTime * uRippleSpeed, uTime * uRippleSpeed * 0.6);\n' +
         '  return vNoise(q) * 0.65 + vNoise(q * 2.3 + 7.1) * 0.35; }\n';
@@ -271,7 +272,12 @@ import * as SkeletonUtils from '../../vendor/three-addons-g/utils/SkeletonUtils.
         '  diffuseColor.rgb = mix(diffuseColor.rgb, uMossCol, uMoss * smoothstep(0.55, 0.12, hgt + (n2 - 0.5) * 0.25) * smoothstep(0.30, 0.65, n1));\n' +
         '  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.07, 0.045, 0.035), uCrust * smoothstep(0.48, 0.62, n1 * 0.7 + n2 * 0.3));\n' +
         '  diffuseColor.rgb = mix(diffuseColor.rgb, uMurkCol, uMurk * n1);\n' +
-        '  diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 1.25 + 0.04, uCloud * n2); }');
+        '  diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 1.25 + 0.04, uCloud * n2);\n' +
+        // pebble flecks (Stoneward card): small crisp light/dark grains embedded in the stone
+        '  if (uInGlow > 0.0) { vec2 gd0 = (vObjPos.xy - vec2(-0.12, 0.26)) / vec2(0.22, 0.14); diffuseColor.rgb *= 1.0 - 0.95 * exp(-dot(gd0, gd0)); }\n' + // the green pool replaces the purple (no grey additive mix)
+        '  if (uPebble > 0.0) { vec3 pc = vObjPos * 17.0 + (vec3(vNoise(vObjPos * 40.0), vNoise(vObjPos * 40.0 + 5.0), vNoise(vObjPos * 40.0 + 9.0)) - 0.5) * 0.5; vec3 ci = floor(pc); float ph = fract(sin(dot(ci, vec3(12.9898, 78.233, 45.164))) * 43758.5453);\n' +
+        '    float pd = length(fract(pc) - 0.5 - (vec3(fract(ph * 7.1), fract(ph * 13.7), fract(ph * 3.3)) - 0.5) * 0.3); float peb = step(0.84, ph) * (1.0 - smoothstep(0.2, 0.3, pd));\n' +
+        '    diffuseColor.rgb = mix(diffuseColor.rgb, mix(vec3(0.30, 0.27, 0.21), vec3(0.07, 0.06, 0.05), step(0.93, ph)), uPebble * peb); } }');
       // wet ripple: bump the shading normal from an animated noise height field
       fs = fs.replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\nvec3 slimeGeoN = normal;\n' +
         '{ vec3 dpx = dFdx(-vViewPosition), dpy = dFdy(-vViewPosition); float h = slimeH(vObjPos);\n' +
@@ -285,6 +291,9 @@ import * as SkeletonUtils from '../../vendor/three-addons-g/utils/SkeletonUtils.
       fs = fs.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n' +
         '{ float fr = 1.0 - clamp(dot(normalize(slimeGeoN), normalize(vViewPosition)), 0.0, 1.0); float hgt = vObjPos.y / 1.1;\n' +
         '  totalEmissiveRadiance += uRim * pow(fr, 4.0) * 0.9;\n' +
+        // Venomkin: glowing green interior pooled low + a crisp green rim line (card)
+        '  { vec2 gd = (vObjPos.xy - vec2(-0.12, 0.26)) / vec2(0.22, 0.14); totalEmissiveRadiance += uSSSCol * uInGlow * exp(-dot(gd, gd)) * pow(1.0 - fr, 1.2) * (0.8 + 0.4 * vNoise(vObjPos * 4.0 + vec3(0.0, uTime * 0.25, 0.0))); }\n' +
+        '  totalEmissiveRadiance += uRim * uRimLine * smoothstep(0.78, 0.95, fr);\n' +
         '  totalEmissiveRadiance += uSSSCol * uSSS * (1.0 - fr) * clamp(1.1 - hgt * 0.8, 0.2, 1.1);\n' +
         '  vec3 cq = vObjPos * 5.5 + vec3(0.0, uTime * 0.35, uTime * 0.2); float cA = vNoise(cq), cB = vNoise(cq * 1.7 + 4.3);\n' +
         '  float cau = pow(clamp(1.0 - abs(cA - cB) * 5.0, 0.0, 1.0), 5.0);\n' +
@@ -689,14 +698,14 @@ import * as SkeletonUtils from '../../vendor/three-addons-g/utils/SkeletonUtils.
     var pr = propsFor(el);
     if (hk && HERO_KITS[hk]) pr = Object.assign({}, pr, HERO_KITS[hk]);
     var storm = !!(spk && el === 'lightning');
-    if (storm) pr = Object.assign({}, pr, { scale: 1.75 });
+    if (storm) pr = Object.assign({}, pr, { scale: 1.12 }); // whole unit (ball + bolts, solid mesh) ~115 px at fight distance
     // species looks (approved concepts): Tideborn caustic net thinned toward the clean cel gel; Stoneward dry matte stone
     // (no gloss, no drips, pebble flecks); Venomkin murky purple with a green glow pooled low.
     if (spk && el === 'water') pr = Object.assign({}, pr, { caustic: 0.36, ripple: 0.36 });
-    if (spk && el === 'earth') pr = Object.assign({}, pr, { color: 0x7a5530, atten: 0x4a3018, trans: 0.0, rough: 0.92, ripple: 0.0, caustic: 0.0, sss: 0.0,
-      rim: 0x2a1c10, crust: 0.42, cloud: 0.7, sheen: 0.0, scale: 1.6, coreGlow: 0.0, jigAmp: 0.004, stiff: 160, damp: 18, squash: 0.45, ts: 0.75 });
-    if (spk && el === 'poison') pr = Object.assign({}, pr, { color: 0x4a1a80, atten: 0x2a0a50, trans: 0.0, rough: 0.2, sheen: 0.0, murk: 0.2, murkCol: 0x24083e,
-      sss: 0.22, sssCol: 0x7ae020, rim: 0x9aff50, caustic: 0.0, scale: 1.75, caustCol: 0xb8ff60, ripple: 0.5 }); // Stormcore Orb: reads at fight distance (>= ~86 px at 1920)
+    if (spk && el === 'earth') pr = Object.assign({}, pr, { color: 0x655a4a, atten: 0x4e4a42, trans: 0.0, rough: 0.95, ripple: 0.0, caustic: 0.0, sss: 0.0,
+      rim: 0x000000, crust: 0.22, cloud: 0.35, pebble: 1.0, sheen: 0.0, scale: 1.6, coreGlow: 0.0, jigAmp: 0.004, stiff: 160, damp: 18, squash: 0.45, ts: 0.75 });
+    if (spk && el === 'poison') pr = Object.assign({}, pr, { color: 0x7648b4, atten: 0x3a1a70, trans: 0.0, rough: 0.2, sheen: 0.0, murk: 0.12, murkCol: 0x3a1468,
+      sss: 0.0, sssCol: 0x5ad01a, inGlow: 0.6, rim: 0xa0ff50, rimLine: 1.6, caustic: 0.0, scale: 2.5, caustCol: 0xb8ff60, ripple: 0.5 }); // Stormcore Orb: reads at fight distance (>= ~86 px at 1920)
     var look = pr;
     var rar = RARITY[unit.rarity] || RARITY.Common;
     var env = envFor(opts.renderer);
@@ -741,14 +750,14 @@ import * as SkeletonUtils from '../../vendor/three-addons-g/utils/SkeletonUtils.
             '#include <dithering_fragment>\n' +
             ' float ndv = abs(dot(normalize(normal), normalize(vViewPosition)));\n' +
             (hasCol ? ' float g = clamp(vColor.r, 0.0, 1.0);\n' : ' float g = pow(ndv, 3.0);\n') +
-            ' float core = smoothstep(0.45, 0.92, g);\n' +              // white-hot centre
+            ' float core = smoothstep(0.62, 0.97, g);\n' +              // white-hot centre
             ' float bolt = smoothstep(0.03, 0.45, g);\n' +              // light pulled out along the bolt spines
             ' vec3 col = mix(vec3(1.05, 0.95, 0.36), vec3(1.2, 1.15, 0.62), bolt);\n' + // electric yellow -> yellow-white
             ' col = mix(col, vec3(2.6, 2.6, 2.4), core);\n' +
             ' gl_FragColor.rgb = col * (1.0 + max(0.0, emissive.r - 0.55) * 1.2);  // battle sets emissiveIntensity ~0.05 at rest; pulses brighten\n' +
             // no hard edge anywhere: alpha dissolves toward the silhouette rim, the dim shell between bolts fades most
-            ' float rim = smoothstep(0.12, 0.85, ndv); rim *= rim;\n' +
-            ' gl_FragColor.a = clamp(rim * (0.5 + 0.5 * bolt) + core * smoothstep(0.0, 0.3, ndv), 0.0, 1.0);');
+            ' float rim = smoothstep(0.0, 0.6, ndv);\n' +   // soft fade to the silhouette: no hard edge, but the ball body reads solid
+            ' gl_FragColor.a = clamp(rim * (0.8 + 0.2 * bolt) + core * 0.5, 0.0, 1.0);');
         };
         m.name = 'StormGlow'; slime = true; // weightless: no surface jiggle (and keeps this shader hook)
         if (!body || o.name === 'body') body = o;
@@ -765,7 +774,7 @@ import * as SkeletonUtils from '../../vendor/three-addons-g/utils/SkeletonUtils.
           envMapIntensity: pr.metal > 0.5 ? 1.6 : 1.3, specularIntensity: 1.0
         });
         if (!hiQ) { m.transparent = false; m.roughness = Math.min(m.roughness, 0.1); }
-        if (spk && el === 'poison') { m.envMapIntensity = 0.75; m.clearcoatRoughness = 0.12; }
+        if (spk && el === 'poison') { m.envMapIntensity = 0.45; m.specularIntensity = 0.6; m.clearcoatRoughness = 0.12; m.iridescence = 0; m.emissive = new THREE.Color(0x7648b4).multiplyScalar(0.35); } // card purple held saturated
         if (spk && el === 'earth') { // dry stone: no clearcoat, no sheen, no iridescence, dull env
           m.clearcoat = 0; m.sheen = 0; m.iridescence = 0; m.transmission = 0; m.roughness = 0.92; m.envMapIntensity = 0.45; m.specularIntensity = 0.25; m.transparent = false;
         }
@@ -789,6 +798,7 @@ import * as SkeletonUtils from '../../vendor/three-addons-g/utils/SkeletonUtils.
       } else if (name === 'GelBubble') {
         m = new THREE.MeshPhysicalMaterial({ color: 0xeefaff, roughness: 0.02, transmission: hiQ ? 0.9 : 0, thickness: 0.08, ior: 1.2,
           clearcoat: 1, iridescence: 0.6, emissive: new THREE.Color(pr.caustCol), emissiveIntensity: 0.12 });
+        if (spk && el === 'poison') { m.transmission = 0; m.color.set(0xc8ff80); m.emissive.set(0x9cff40); m.emissiveIntensity = 1.1; m.iridescence = 0; } // glowing bubble column
       } else if (name === 'Ember') {
         m = new THREE.MeshBasicMaterial({ color: new THREE.Color(0xffc040).multiplyScalar(1.6 + rar.trim), toneMapped: false });
       } else if (name === 'InnerLeaf') {
@@ -798,6 +808,8 @@ import * as SkeletonUtils from '../../vendor/three-addons-g/utils/SkeletonUtils.
       } else if (name === 'Flame') {
         var fl = new THREE.Color(0xff5a0a).lerp(new THREE.Color(0xffc23a), 0.25 + rar.trim * 0.5);
         m = new THREE.MeshStandardMaterial({ color: 0xff6a10, emissive: fl, emissiveIntensity: 0.42 + rar.trim * 0.3, roughness: 0.55 });
+      } else if (name === 'Orn_Slate') { // Stoneward capstone: flat matte slate, same pebble-free dry stone
+        m = new THREE.MeshStandardMaterial({ color: 0x6f6b64, roughness: 0.9, metalness: 0, envMapIntensity: 0.4 });
       } else if (name === 'Orn_Flower') {
         m = new THREE.MeshStandardMaterial({ color: 0xff8cc6, emissive: new THREE.Color(0xff5fa8), emissiveIntensity: 0.12 + rar.trim * 0.4, roughness: 0.55 });
       } else if (name === 'Orn_Stem') {
@@ -837,7 +849,7 @@ import * as SkeletonUtils from '../../vendor/three-addons-g/utils/SkeletonUtils.
       gx.fillStyle = gg; gx.fillRect(0, 0, 128, 128);
       shadow.material.dispose();
       shadow.material = new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(gc), color: new THREE.Color(2.0, 1.8, 1.1), transparent: true, depthWrite: false, blending: THREE.NormalBlending, toneMapped: false, fog: false });
-      shadow.geometry.dispose(); shadow.geometry = new THREE.CircleGeometry(2.0, 40); // wider than the body so it shows past the hover gap
+      shadow.geometry.dispose(); shadow.geometry = new THREE.CircleGeometry(1.5, 40); // wider than the body so it shows past the hover gap
       shadow.scale.set(0.95, 0.55, 1); fig0glow = true;
       // centre the glow (and the halo) on the white-hot core: mean of the vertices whose baked glow is near 1
       model.updateMatrixWorld(true);
@@ -853,7 +865,7 @@ import * as SkeletonUtils from '../../vendor/three-addons-g/utils/SkeletonUtils.
         blending: THREE.AdditiveBlending, toneMapped: false, fog: false }));
       var hb = null; model.traverse(function (o) { if (o.isBone && o.name === 'body' && !hb) hb = o; });
       var hpar = hb || model; var hl = hpar.worldToLocal(gcx.clone()); halo.position.copy(hl);
-      var hw = new THREE.Vector3(); hpar.getWorldScale(hw); halo.scale.setScalar(2.3 / (hw.x || 1)); halo.renderOrder = -1; halo.name = 'StormHalo';
+      var hw = new THREE.Vector3(); hpar.getWorldScale(hw); halo.scale.setScalar(1.5 / (hw.x || 1)); halo.renderOrder = -1; halo.name = 'StormHalo';
       hpar.add(halo); mats.push(halo.material);
     }
     shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.035; shadow.renderOrder = 1;

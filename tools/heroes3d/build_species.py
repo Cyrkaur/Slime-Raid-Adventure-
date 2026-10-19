@@ -50,7 +50,7 @@ if EL == 'lightning':   # bolt lobes stay thin, lens-flat blades that thin to th
     core = np.zeros_like(D); cyx = np.array(np.unravel_index(np.argmax(D), D.shape), np.float32)
     yy, xx = np.mgrid[0:D.shape[0], 0:D.shape[1]]; rr = np.hypot(yy - cyx[0], xx - cyx[1])
     full = np.sqrt(np.clip(2 * R * D - D * D, 0, None)) * DEPTH * cell
-    w = np.clip((R * 1.15 - rr) / (R * 0.25), 0, 1); Hh = Hh * (1 - w) + full * w
+    w = np.clip((R * 1.35 - rr) / (R * 0.35), 0, 1); Hh = Hh * (1 - w) + full * w
 Hh[~inside] = 0
 # closed surface: nodes sit between pixels; outline nodes are shared by front and back (thickness 0)
 verts = []; faces = []; idx = {}
@@ -89,6 +89,38 @@ Z = [v.co.z for v in body.data.vertices]; ZLO, ZHI = min(Z), max(Z); H = ZHI - Z
 print('BODY tris', sum(len(p.vertices) - 2 for p in body.data.polygons), 'H', round(H, 3), 'W', round(W_ * cell, 3))
 
 HEAD = []
+PXW = 0.42 * SCALE / 360.0          # world units per concept pixel
+def px_world(px, py_img):           # concept pixel (x, y from top) -> (x, z) world, plus the mask-grid cell for depth lookups
+    row = (h0 - 1 - py_img); i = (px - x0) / STEP + 2; j = (row - y0) / STEP + 2
+    return (i - 2) * cell - XC0, (j - 2) * cell - ZM0, int(round(j)), int(round(i))
+def depth_at(j, i): j = min(max(j, 0), Hh.shape[0] - 1); i = min(max(i, 0), Hh.shape[1] - 1); return float(Hh[j, i])
+if EL == 'earth':   # Stoneward: flat slate capstone with a slanted top, riding the top contour of the approved silhouette
+    import bmesh
+    M_SLATE = mat('Orn_Slate', (0.30, 0.29, 0.27), 0.92)   # slate, linear (≈ #959089 sRGB)
+    cols = [i for i in range(W_) if inside[:, i].any()]; iL = cols[0] + int(0.22 * len(cols)); iR = cols[0] + int(0.80 * len(cols))
+    T = 0.07 * SCALE; top, bot = [], []; dep = 0.0
+    for i in (iL, iR):   # one straight slanted top edge (no stair-steps)
+        jt = int(np.where(inside[:, i])[0].max()); x = (i - 2) * cell - XC0; z = (jt - 2) * cell - ZM0 + 0.004
+        top.append((x, z)); bot.append((x, z - T)); dep = max(dep, depth_at(jt - int(T / cell), i))
+    dep = float(Hh.max()) * 0.9   # caps the full top face
+    bm = bmesh.new(); ring = top + bot[::-1]
+    fv = [bm.verts.new((x, -dep, z)) for x, z in ring]; bv = [bm.verts.new((x, dep, z)) for x, z in ring]
+    bm.faces.new(fv); bm.faces.new(bv[::-1])
+    n = len(ring)
+    for k in range(n): bm.faces.new([fv[k], fv[(k + 1) % n], bv[(k + 1) % n], bv[k]][::-1])
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+    bmesh.ops.bevel(bm, geom=list(bm.edges), offset=0.008, segments=1, affect='EDGES')
+    sme = bpy.data.meshes.new('slate'); bm.to_mesh(sme); bm.free(); slate = link(bpy.data.objects.new('slate', sme))
+    slate.data.materials.append(M_SLATE); HEAD.append(slate)
+    print('SLATE cols', iL, iR, 'depth', round(dep, 3))
+if EL == 'poison':  # Venomkin: column of marsh-gas bubbles rising up into the stalk (concept v3 positions, full-res px)
+    M_BUB = mat('GelBubble', (0.75, 1.0, 0.5), 0.05)
+    for (bx, by, br) in [(646, 702, 42), (682, 631, 36), (718, 553, 32), (750, 470, 26), (788, 399, 21)]:
+        x, z, j, i = px_world(bx, by); r = br * PXW
+        bpy.ops.mesh.primitive_uv_sphere_add(segments=16, ring_count=10, radius=r, location=(x, -(depth_at(j, i) + r * 0.15), z))   # sit on the front face so they read
+        ob = bpy.context.active_object; ob.name = 'bubble'; ob.data.materials.append(M_BUB)
+        for pp in ob.data.polygons: pp.use_smooth = True
+        HEAD.append(ob)
 if GLOWMAP:   # Stormcore: bake glow (white-hot core + light pulled out along the bolt ridges) into vertex colour
     gi = bpy.data.images.load(GLOWMAP); gw, gh = gi.size
     gp = np.array(gi.pixels[:], dtype=np.float32).reshape(gh, gw, gi.channels)[..., 0]
